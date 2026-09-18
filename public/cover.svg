@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="coverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="35%" stop-color="#312e81"/>
+      <stop offset="70%" stop-color="#4338ca"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="circleGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="circleGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.07"/>
+    </pattern>
+  </defs>
+
+  <!-- Base Gradient -->
+  <rect width="1200" height="400" fill="url(#coverGrad)"/>
+
+  <!-- Grid Pattern Overlay -->
+  <rect width="1200" height="400" fill="url(#grid)"/>
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="150" cy="80" r="220" fill="url(#circleGrad1)"/>
+  <circle cx="1050" cy="320" r="260" fill="url(#circleGrad2)"/>
+  <circle cx="650" cy="50" r="180" fill="url(#circleGrad1)" opacity="0.6"/>
+
+  <!-- Floating Tech / Code Symbols & Accent Lines -->
+  <g opacity="0.2" stroke="#ffffff" stroke-width="2" fill="none">
+    <!-- Curly braces -->
+    <path d="M 220 180 Q 200 180 200 200 Q 200 220 180 220 Q 200 220 200 240 Q 200 260 220 260" stroke-linecap="round"/>
+    <path d="M 980 140 Q 1000 140 1000 160 Q 1000 180 1020 180 Q 1000 180 1000 200 Q 1000 220 980 220" stroke-linecap="round"/>
+
+    <!-- Angle Brackets < / > -->
+    <path d="M 820 80 L 800 100 L 820 120" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 840 75 L 830 125" stroke-linecap="round"/>
+    <path d="M 850 80 L 870 100 L 850 120" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Dots Grid Accent -->
+    <circle cx="340" cy="90" r="3" fill="#ffffff"/>
+    <circle cx="360" cy="90" r="3" fill="#ffffff"/>
+    <circle cx="380" cy="90" r="3" fill="#ffffff"/>
+    <circle cx="340" cy="110" r="3" fill="#ffffff"/>
+    <circle cx="360" cy="110" r="3" fill="#ffffff"/>
+    <circle cx="380" cy="110" r="3" fill="#ffffff"/>
+  </g>
+
+  <!-- Glowing stars/sparkles -->
+  <g fill="#ffffff">
+    <polygon points="180,60 183,72 195,75 183,78 180,90 177,78 165,75 177,72" opacity="0.6"/>
+    <polygon points="1020,90 1022,98 1030,100 1022,102 1020,110 1018,102 1010,100 1018,98" opacity="0.5"/>
+    <polygon points="680,280 682,286 688,288 682,290 680,296 678,290 672,288 678,286" opacity="0.4"/>
+  </g>
+</svg>
