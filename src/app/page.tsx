@@ -18,8 +18,9 @@ export default function ProfilePage() {
         </span>
 
         {/* 소개글 */}
-        <p className="text-gray-600 leading-relaxed text-sm">
-          안녕하세요! 바이브 코딩을 배우고 있는 대학생입니다.
+        <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-line">
+          새로운 기술을 탐구하고 문제 해결을 즐기는 개발자입니다.{"\n"}
+          사용자에게 더 나은 경험을 제공하기 위해 끊임없이 배우고 성장하고 있습니다.
         </p>
 
         {/* 구분선 및 링크/버튼 영역 */}
