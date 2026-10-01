@@ -8,20 +8,25 @@ export interface SocialLink {
 export interface CustomLink {
   id: string;
   title: string;
-  url: string;
-  enabled: boolean;
-  clicks?: number;
-  highlight?: boolean;
   subtitle?: string;
+  description?: string;
+  url: string;
+  badge?: string;
+  category?: string;
+  enabled: boolean;
+  highlight?: boolean;
+  clicks?: number;
   icon?: string;
+  bgColor?: string;
+  badgeColor?: string;
 }
 
 export interface ThemeConfig {
   presetId: string;
-  name: string;
+  name?: string;
   backgroundClass: string;
   textColor: string;
-  subTextColor: string;
+  subTextColor?: string;
   cardBg: string;
   cardBorder: string;
   buttonStyle: 'rounded' | 'pill' | 'sharp' | 'outline' | 'shadow' | 'glass';
@@ -35,9 +40,14 @@ export interface ThemeConfig {
 export interface MyLinkProfile {
   username: string;
   displayName: string;
+  englishName?: string;
+  role?: string;
   bio: string;
   avatarUrl: string;
   badge?: string;
+  location?: string;
+  email?: string;
+  school?: string;
   theme: ThemeConfig;
   socials: SocialLink[];
   links: CustomLink[];
