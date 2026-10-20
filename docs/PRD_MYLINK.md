@@ -12,15 +12,17 @@
 - **단계별 시연(Live Demo) 목적에 맞춰**, 복잡한 백엔드 설정 없이 **Next.js 16 + React 19 + Tailwind CSS v4 + Shadcn/ui + LocalStorage**를 기반으로 1단계(프로필 페이지)부터 점진적으로 완성해 나가는 구조로 개발합니다.
 
 ### 1.3 디자인 시스템 및 스타일링 원칙 (Design System & Styling Principles)
+- **NOL 디자인 시스템 (NOL Design System) 준수 (`docs/design.md`)**:
+  - 흰 바탕 위에 채도 높은 파랑(`primary-main: #4154FF`)을 CTA와 선택에 아껴 쓰고, 거의 검정인 본문 글자(`neutral-main: #1B1C1F`), 아주 연한 회색 면(`neutral-weak: #F7F8FB`), 1px 연한 테두리(`neutral-weak2: #E9EAEF`)로 깊이를 만듭니다.
+  - 검색창/칩/배지는 알약형(`rounded-full`), 버튼과 카드는 12·16 둥근 사각(`rounded-[12px]`, `rounded-[16px]`), 히어로는 `rounded-[28px]`의 부드러운 곡률을 적용합니다.
 - **Shadcn/ui 기반 재사용 컴포넌트 아키텍처 (Component Reusability)**:
   - 모든 UI 요소(Button, Card, Avatar, Badge, Toast 등)는 `src/components/ui/` 하위에 위치한 `Shadcn/ui`의 CVA(Class Variance Authority) 및 Radix UI 기반 표준 디자인 시스템으로 구현합니다.
-  - 프로필 화면뿐만 아니라 향후 에디터(`/admin`) 및 통계 대시보드에서도 동일한 UI 컴포넌트를 직접 재사용할 수 있도록 변형(variant)과 크기(size)를 체계화합니다.
 - **Tailwind CSS v4 스타일링 단일화 (Tailwind CSS Unification)**:
   - 모든 페이지 및 컴포넌트의 스타일은 **Tailwind CSS 유틸리티 클래스 및 CSS 변수 체계로 100% 통일**합니다.
-  - `globals.css`의 `@theme inline`을 통해 네오브루탈리즘 컬러 팔레트(`--color-brand-yellow`, `--color-brand-bg`, `--color-brand-cyan`, `--color-brand-pink` 등)와 라운딩(`--radius`), 그림자 토큰을 통합 관리하여 인라인 스타일 및 중복 CSS를 완전히 배제합니다.
+  - `globals.css`의 `@theme inline`을 통해 NOL 브랜드 및 시맨틱 컬러 토큰을 일원화 관리합니다.
 
 ### 1.4 개발 진행 전략 (Phased Demo Approach)
-- **1단계 (현재 구현 범위 - 핵심)**: **Shadcn/ui 및 LocalStorage를 활용한 완성형 프로필 페이지 (Profile Page)**
+- **1단계 (현재 구현 범위 - 핵심)**: **NOL 디자인 시스템 기반 Shadcn/ui 및 LocalStorage를 활용한 완성형 프로필 페이지 (Profile Page)**
   - 대시보드 및 통계 기능은 제외하고, 독립적으로 완벽하게 동작하는 멀티링크 프로필 화면에 집중
 - **2단계 (차기 확장 범위)**: 링크/테마 편집 대시보드 에디터 (`/admin`)
 - **3단계 (차기 확장 범위)**: 방문자 및 링크 클릭수 통계 분석 (`Analytics`)
@@ -34,7 +36,7 @@
 | :--- | :--- | :--- |
 | **Framework** | Next.js 16 (App Router) | 풀스택 프레임워크 및 라우팅 |
 | **Language** | TypeScript | 타입 안정성 보장 |
-| **Design System** | **Shadcn/ui** | CVA, Radix UI 기반 모던 재사용 UI 컴포넌트 시스템 |
+| **Design System** | **NOL Design System (`docs/design.md`) + Shadcn/ui** | CVA, Radix UI 기반 모던 재사용 UI 컴포넌트 시스템 |
 | **Styling** | **Tailwind CSS v4 (CSS-First)** | 전역 유틸리티 퍼스트 스타일링 단일화 및 CSS 변수 테마 |
 | **Icons** | Lucide React + 커스텀 SVG | 표준화된 벡터 아이콘 세트 |
 | **State & Storage** | React Context / Hooks + LocalStorage | 클라이언트 상태 관리 및 데이터 영속화 |
@@ -47,7 +49,7 @@
 * **주요 페르소나**: 크리에이터의 SNS를 구독 중인 모바일 방문자 "민지"
 * **상황 / 맥락**: 인스타그램 바이오 링크(`mylink.com/@shinyong`)를 터치하여 방문
 * **진행 흐름**:
-  1. **페이지 진입**: 모바일 브라우저에서 딜레이 없이 Shadcn/ui 스타일로 정돈된 마이링크 프로필 화면이 즉시 로드된다.
+  1. **페이지 진입**: 모바일 브라우저에서 딜레이 없이 NOL 디자인 시스템 스타일로 정돈된 마이링크 프로필 화면이 즉시 로드된다.
   2. **프로필 탐색**: 크리에이터의 아바타, 닉네임, 한 줄 소개, 소셜 아이콘 바(유튜브, 인스타그램, 깃허브)를 한눈에 파악한다.
   3. **콘텐츠 이동**: 등록된 링크 카드(예: "최신 프로젝트 포트폴리오", "기술 블로그") 중 관심 있는 카드를 탭한다.
   4. **외부 연결**: 새 탭/새 창으로 매끄럽게 연결되어 대상 웹사이트로 이동한다.
@@ -71,7 +73,7 @@
 * **진행 흐름**:
   1. **에디터 진입**: 관리자(`/admin`) 화면으로 이동하여 좌측의 [링크 탭]을 연다.
   2. **링크 추가 & 순서 변경**: `[+ 새 링크 추가]`를 눌러 제목과 URL을 입력하고, 실시간 우측 모바일 프리뷰에 즉시 반영되는 모습을 확인한다.
-  3. **테마 변경**: [테마 탭]에서 마음에 드는 프리셋 테마(예: Pastel Peach, Dark Slate)와 버튼 스타일을 선택한다.
+  3. **테마 변경**: [테마 탭]에서 마음에 드는 프리셋 테마(예: NOL Blue, Dark Slate)와 버튼 스타일을 선택한다.
   4. **성과 확인**: [통계 탭]에서 어떤 링크가 방문자들에게 가장 많이 클릭되었는지 클릭 랭킹 지표를 확인한다.
 
 ---
@@ -80,25 +82,25 @@
 
 ### 4.1 화면 개요
 - 모바일 화면(360px ~ 430px)에 최적화된 유려하고 직관적인 카드형 멀티링크 페이지
-- **Shadcn/ui (Button, Card, Avatar, Badge, Toast)** 컴포넌트 체계 및 Tailwind CSS 단일화 적용
+- **NOL 디자인 시스템 + Shadcn/ui (Button, Card, Avatar, Badge, Toast)** 컴포넌트 체계 및 Tailwind CSS 단일화 적용
 - 외부 서버 의존 없이 **브라우저의 `localStorage`에서 데이터를 직접 읽어와 렌더링**
 
 ```
 +-------------------------------------------------------------+
 |                      [ 상단 유틸리티 바 ]                      |
-|                                         [ 🔗 링크 복사 / 공유 ]|
+|  ● mylink.com/@shinyong                         [ 🔗 공유 ]  |
 +-------------------------------------------------------------+
 |                                                             |
 |                   +-------------------+                     |
 |                   |   [프로필 아바타]  |                     |
-|                   |    (원형 / 96px)   |                     |
+|                   |  (rounded-24/96px)|                     |
 |                   +-------------------+                     |
 |                                                             |
 |                         신 찬 용                            |
 |                        @chanyong                            |
 |                                                             |
 |                 [ 💻 STUDENT DEVELOPER ]                    |
-|                        (역할 뱃지)                           |
+|                        (NOL 뱃지)                            |
 |                                                             |
 |           "우아하고 직관적인 코드로 문제를 해결하는          |
 |                 프론트엔드 개발자입니다 🚀"                  |
@@ -135,7 +137,7 @@
 |                                                             |
 |                 [ 📋 전체 프로필 링크 복사 ]                 |
 |                                                             |
-|                     ⚡ Powered by MyLink                    |
+|           ⚡ Powered by MyLink · NOL Design System          |
 |                                                             |
 +-------------------------------------------------------------+
 ```
@@ -150,35 +152,35 @@
    - 클라이언트 사이드 Hydration 이슈 방지를 위한 안전한 마운트 로직 적용
 
 #### 4.2.2 프로필 영역 (Profile Header)
-1. **아바타 (Shadcn Avatar)**:
-   - 원형/스퀘어 라운드 형태의 프로필 사진 렌더링 (호버 애니메이션 포함)
+1. **아바타 (Shadcn Avatar / Frame)**:
+   - `rounded-[24px]` 형태의 프로필 사진 렌더링, 1px 미세 테두리 및 부드러운 스케일 업 애니메이션
 2. **기본 정보 & 뱃지 (Shadcn Badge)**:
    - 이름 (Display Name), 유저네임 (@username), 한 줄 소개 (Bio)
-   - 상태/역할 뱃지 (예: `AVAILABLE FOR HIRE`, `STUDENT DEVELOPER` 등)
+   - 상태/역할 뱃지 (`variant="primary"`, `variant="neutral"`)
 
 #### 4.2.3 소셜 아이콘 바 (Social Icons Bar)
-- 활성화된 소셜 플랫폼(Instagram, YouTube, GitHub, Twitter/X, TikTok, Email 등)의 아이콘 바 렌더링 (Shadcn `Button` variant="neo" 적용)
+- 활성화된 소셜 플랫폼(Instagram, YouTube, GitHub, Twitter/X, TikTok, Email 등)의 아이콘 바 렌더링 (Shadcn `Button` variant="outline" size="iconSm" 적용)
 - 아이콘 클릭 시 새 탭(`target="_blank"`, `rel="noopener noreferrer"`)으로 해당 소셜 주소 이동
 
 #### 4.2.4 커스텀 링크 목록 (Shadcn Card / Button 기반)
 1. **링크 버튼 & 카드 UI**:
-   - Shadcn `Card` (variant: `neoInteractive`) 및 `Badge`, `Button` 컴포넌트를 조합하여 재사용 가능하게 구현
+   - Shadcn `Card` (variant: `interactive`) 및 `Badge`, 쉐브론 아이콘을 조합하여 세련되게 모듈화
    - 제목(Title), 부제목/설명(Subtitle/Description), 카테고리 뱃지 노출
    - 활성화(`enabled: true`)된 링크만 화면에 노출
 2. **인터랙션 & 호버 효과**:
-   - 마우스 호버/터치 시 부드러운 스케일 업 및 그림자/컬러 전환 애니메이션 (Tailwind CSS 유틸리티로 일원화)
+   - 마우스 호버 시 1px 연한 테두리(`border-primary-weak2`) 및 미세한 배경 전환(`hover:bg-neutral-veryweak`)
    - 클릭 시 지정된 대상 URL로 새 탭 이동 및 클릭수 증가 집계
 
-#### 4.2.5 테마 및 스타일링 (Tailwind CSS v4 + Shadcn/ui Theming)
+#### 4.2.5 테마 및 스타일링 (NOL Design System + Tailwind CSS v4)
 - 모든 스타일은 Tailwind CSS v4 CSS-First 테마로 단일화:
-  - **테마 토큰**: `globals.css`의 `@theme inline`을 통해 색상, 라운딩, 폰트, 애니메이션 일원화
-  - **버튼 & 카드 스타일**: Shadcn CVA variants(`neo`, `neoYellow`, `neoDark`, `neoMain`, `neoInteractive` 등)로 체계화
-  - **폰트 및 컬러**: Tailwind 시맨틱 컬러 토큰 및 네오브루탈리즘 테마 변수 활용
+  - **테마 토큰**: `globals.css`의 `@theme inline`을 통해 `primary-main (#4154FF)`, `neutral-main (#1B1C1F)`, `neutral-weak (#F7F8FB)` 등 NOL 색상 일원화
+  - **버튼 & 카드 스타일**: Shadcn CVA variants(`primary`, `secondary`, `outline`, `interactive` 등)로 체계화
+  - **깊이 & 곡률**: 1px 테두리 기반의 레이어링 및 12·16·28px 둥근 모서리 적용
 
 #### 4.2.6 편의 기능 (Utilities)
 1. **링크 복사 및 공유 (Copy & Share)**:
-   - `[공유하기 / 링크 복사]` 버튼 클릭 시 현재 페이지 URL을 클립보드에 복사 (Shadcn `Button` 기반)
-   - 복사 완료 시 Shadcn `Toast` 팝업 피드백 출력
+   - `[공유 / 링크 복사]` 버튼 클릭 시 현재 페이지 URL을 클립보드에 복사 (Shadcn `Button` 기반)
+   - 복사 완료 시 Shadcn `Toast` 팝업 피드백 출력 (`bg-neutral-main text-white shadow-nol-2`)
 
 ---
 
@@ -247,45 +249,15 @@ export interface MyLinkProfile {
 }
 ```
 
-### 5.2 더미 데이터 및 모크 API 제공 체계 (Mock Data Sources)
-본 프로젝트는 초기 렌더링, 시연(Demo), 독립적 클라이언트 개발 및 테스트를 위해 3가지 형태의 더미 데이터를 표준으로 제공하고 사용합니다.
-
-1. **TypeScript 모듈 (`src/data/mockData.ts`)**:
-   - `MOCK_CUSTOM_LINKS`: 포트폴리오, GitHub, Velog, Notion 이력서, Figma 등 7개 기본 링크 목록
-   - `MOCK_SOCIAL_LINKS`: GitHub, 블로그, 링크드인, 인스타그램, 이메일 등 소셜 링크
-   - `MOCK_PROFILE`: 학생 개발자 '신찬용' 기본 프로필 데이터
-   - `SAMPLE_PROFILES`: 직군별 테마 샘플 (개발자, 크리에이터, 디자이너)
-
-2. **정적 JSON 데이터 파일 (`src/data/links.json`, `public/data/links.json`)**:
-   - 백엔드 연동 전 순수 JSON 파싱 및 외부 fetch 테스트용 데이터셋
-   - 브라우저에서 `/data/links.json` URL로 정적 HTTP 접근 가능
-
-3. **Next.js 백엔드 모크 API (Route Handlers)**:
-   - `GET /api/links`: 링크 목록 조회 (필터링 `?enabled=true`, 검색 `?query=`, 정렬 `?sort=clicks` 지원)
-   - `POST /api/links`: 신규 링크 생성
-   - `PATCH /api/links`: 링크 클릭 수 증가(`action: "click"`) 및 정보 수정
-   - `DELETE /api/links?id={linkId}`: 링크 삭제
-   - `GET /api/profile?username={username}`: 사용자 프로필 조회
-   - `PUT /api/profile`: 프로필 정보 수정
-
 ---
 
-## 6. 후속 확장 계획 (차후 단계)
+## 6. 1단계 검증 기준 (Verification Criteria)
 
-* **2단계: 대시보드 에디터 (`/admin`)**
-  - 실시간 분할 편집기 (좌측: 링크/프로필/테마 편집, 우측: 실시간 모바일 프리뷰)
-  - Shadcn Dialog, Form, Switch, Tabs 컴포넌트 활용
-* **3단계: 통계 분석 (`Analytics`)**
-  - 프로필 총 방문수 및 링크별 클릭수 로컬 집계 대시보드 (Shadcn Card / Chart 활용)
-
----
-
-## 7. 1단계 검증 기준 (Verification Criteria)
-
+- [ ] **NOL 디자인 시스템 명세 보존**: `docs/design.md`가 정상 생성되어 참조 가능한가?
 - [ ] **더미 데이터 초기 세팅**: TypeScript 모듈 및 JSON/API 기반 더미 데이터가 정상 로드되는가?
-- [ ] **Tailwind CSS & Shadcn/ui 기반 단일화**: Button, Card, Avatar, Badge, Toast 등 모든 UI 컴포넌트가 Tailwind CSS 토큰 및 Shadcn/ui 디자인 시스템으로 통일성 있게 구성되었는가?
+- [ ] **NOL 스타일링 및 Shadcn/ui 렌더링**: Button, Card, Avatar, Badge, Toast 등 모든 UI 컴포넌트가 NOL 블루(`primary-main: #4154FF`) 및 1px 테두리, 둥근 모서리 스케일로 표시되는가?
 - [ ] **초기 데이터 로딩**: `localStorage`에 데이터가 없을 때 기본 Mock 데이터가 정상 세팅되어 화면에 표시되는가?
-- [ ] **데이터 렌더링**: 프로필 사진, 이름, 소개글, 소셜 아이콘 바, 링크 목록이 테마 스타일에 맞춰 완벽히 표시되는가?
+- [ ] **데이터 렌더링**: 프로필 사진, 이름, 소개글, 소셜 아이콘 바, 링크 목록이 NOL 스타일에 맞춰 완벽히 표시되는가?
 - [ ] **링크 이동**: 링크 및 소셜 아이콘 클릭 시 해당 URL로 새 창 이동이 정상 동작하는가?
 - [ ] **링크 복사**: 공유/복사 버튼 클릭 시 주소가 복사되고 완료 토스트가 나타나는가?
 - [ ] **반응형 뷰**: 모바일 및 데스크톱 브라우저 환경에서 깔끔하고 중앙 집중된 카드 뷰로 렌더링되는가?

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { MyLinkProfile } from "@/types/mylink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Mail, Sparkles } from "lucide-react";
+import { MapPin, Mail, Sparkles, CheckCircle2 } from "lucide-react";
 
 interface ProfileHeaderProps {
   profile: MyLinkProfile;
@@ -15,74 +15,66 @@ interface ProfileHeaderProps {
 export function ProfileHeader({ profile, onCopyEmail }: ProfileHeaderProps) {
   return (
     <div className="flex flex-col items-center text-center">
-      {/* 아바타 & 플로팅 뱃지 */}
-      <div className="relative mb-5 group">
-        <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl border-2 sm:border-3 border-black bg-brand-cyan shadow-[4px_4px_0px_0px_#000] sm:shadow-[6px_6px_0px_0px_#000] overflow-hidden -rotate-2 group-hover:rotate-0 transition-transform duration-200">
+      {/* 아바타: NOL의 둥근 모서리 (rounded-[24px]) 및 1px 소프트 테두리 */}
+      <div className="relative mb-4 group">
+        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[24px] border border-neutral-weak2 bg-neutral-weak p-0.5 shadow-sm overflow-hidden transition-transform duration-200 group-hover:scale-105">
           <Image
             src={profile.avatarUrl || "/avatar.svg"}
             alt={profile.displayName}
-            width={128}
-            height={128}
+            width={112}
+            height={112}
             priority
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded-[22px]"
           />
         </div>
-
-        {/* 플로팅 말풍선 스티커 (Shadcn Badge 기반) */}
-        <Badge
-          variant="neoPink"
-          className="absolute -top-3 -right-10 text-[11px] rotate-6 select-none shadow-[2px_2px_0px_0px_#000]"
-        >
-          HI! 👋
-        </Badge>
       </div>
 
       {/* 이름 & 유저네임 */}
-      <div className="space-y-1 mb-3">
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-black">
+      <div className="space-y-1 mb-2.5">
+        <div className="flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-main">
             {profile.displayName}
           </h1>
-          <span className="font-mono text-sm font-bold text-gray-600">
+          <span className="font-mono text-sm text-neutral-medium">
             @{profile.username}
           </span>
         </div>
 
-        {/* 역할 뱃지 */}
-        <div className="flex items-center justify-center gap-2 pt-1">
+        {/* NOL 스타일 뱃지 그룹 */}
+        <div className="flex items-center justify-center gap-1.5 pt-1 flex-wrap">
           {profile.badge && (
-            <Badge variant="neo" className="text-xs">
-              <Sparkles className="w-3 h-3 mr-1" />
+            <Badge variant="primary" className="text-xs">
+              <Sparkles className="w-3 h-3 mr-1 text-primary-main" />
               {profile.badge}
             </Badge>
           )}
-          <Badge variant="neoSuccess" className="text-xs">
-            <span className="w-2 h-2 rounded-full bg-black inline-block mr-1 animate-pulse" />
+          <Badge variant="neutral" className="text-xs">
+            <CheckCircle2 className="w-3 h-3 mr-1 text-primary-main" />
             AVAILABLE FOR HIRE
           </Badge>
         </div>
       </div>
 
-      {/* 바이오 / 한 줄 소개 */}
-      <p className="max-w-md text-xs sm:text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-line mb-4 px-2">
+      {/* 바이오 / 소개글 (NOL의 중립 보조 글자) */}
+      <p className="max-w-md text-xs sm:text-sm font-normal text-neutral-strong1 leading-relaxed whitespace-pre-line mb-4 px-2">
         {profile.bio}
       </p>
 
-      {/* 메타 정보 뱃지 및 액션 버튼 */}
-      <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-bold">
-        <Badge variant="neoYellow" className="text-xs py-1 px-2.5 shadow-[2px_2px_0px_0px_#000]">
-          <MapPin className="w-3.5 h-3.5 text-black mr-1" /> Seoul, KR
-        </Badge>
+      {/* 메타 정보 칩 (위치, 이메일) */}
+      <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 bg-neutral-weak border border-neutral-weak2 text-neutral-strong1 px-3 py-1 rounded-full font-medium">
+          <MapPin className="w-3.5 h-3.5 text-neutral-medium" /> Seoul, KR
+        </span>
 
         {onCopyEmail && (
           <Button
             onClick={() => onCopyEmail("chanyong.dev@gmail.com")}
-            variant="neo"
+            variant="outline"
             size="sm"
-            className="h-auto py-1 px-2.5 rounded-full bg-pink-200 hover:bg-pink-300 text-xs font-bold shadow-[2px_2px_0px_0px_#000]"
+            className="rounded-full text-xs font-medium h-7 px-3 text-neutral-strong1 hover:text-neutral-main"
             title="이메일 주소 복사"
           >
-            <Mail className="w-3.5 h-3.5 text-black mr-1" /> chanyong.dev@gmail.com
+            <Mail className="w-3.5 h-3.5 text-neutral-medium mr-1" /> chanyong.dev@gmail.com
           </Button>
         )}
       </div>

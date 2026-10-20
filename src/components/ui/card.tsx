@@ -3,15 +3,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-xl border transition-all",
+  "rounded-[16px] transition-all",
   {
     variants: {
       variant: {
-        default: "border-border bg-card text-card-foreground shadow",
-        neo: "border-2 sm:border-3 border-black bg-white text-black shadow-[4px_4px_0px_0px_#000]",
-        neoMain: "border-2 sm:border-3 border-black bg-white text-black shadow-[6px_6px_0px_0px_#000] sm:shadow-[8px_8px_0px_0px_#000] rounded-2xl overflow-hidden",
-        neoInteractive:
-          "border-2 sm:border-3 border-black bg-white text-black shadow-[4px_4px_0px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer",
+        // NOL 표준 카드: 1px 테두리(neutral-weak2 #E9EAEF) + 흰 면
+        default:
+          "border border-neutral-weak2 bg-static-white text-neutral-main",
+        // 떠 있는 카드(부유성)
+        elevated:
+          "border border-neutral-weak2 bg-static-white text-neutral-main shadow-nol-1",
+        // 상호작용 카드 (링크 목록 카드): 호버 시 primary-weak2 테두리 & 미세 면 반응
+        interactive:
+          "border border-neutral-weak2 bg-static-white text-neutral-main hover:border-primary-weak2 hover:bg-neutral-veryweak active:border-primary-main cursor-pointer",
+        // 연한 회색 면 카드
+        muted:
+          "bg-neutral-weak border border-transparent text-neutral-main",
       },
     },
     defaultVariants: {
@@ -41,7 +48,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn("flex flex-col space-y-1.5 p-5", className)}
     {...props}
   />
 ));
@@ -53,7 +60,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("font-semibold leading-none tracking-tight", className)}
+    className={cn("font-bold text-neutral-main leading-tight tracking-normal", className)}
     {...props}
   />
 ));
@@ -65,7 +72,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-xs text-neutral-strong1 leading-normal", className)}
     {...props}
   />
 ));
@@ -75,7 +82,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -85,7 +92,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn("flex items-center p-5 pt-0", className)}
     {...props}
   />
 ));

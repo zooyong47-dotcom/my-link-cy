@@ -3,25 +3,33 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center text-[11px] font-bold transition-colors focus:outline-none",
   {
     variants: {
       variant: {
+        // NOL 신규 / 대표 배지 (알약형, 연파랑 바탕 + 파란 글자 + 연파랑 테두리)
+        primary:
+          "bg-primary-weak text-primary-main border border-primary-weak2 rounded-full px-2.5 py-0.5",
         default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
-        neo: "border-2 border-black bg-[#67E8F9] text-black font-black shadow-[2px_2px_0px_0px_#000]",
-        neoSuccess: "border-2 border-black bg-[#4ADE80] text-black font-black shadow-[2px_2px_0px_0px_#000]",
-        neoPink: "border-2 border-black bg-[#F472B6] text-black font-black shadow-[2px_2px_0px_0px_#000]",
-        neoYellow: "border-2 border-black bg-[#FFE169] text-black font-black shadow-[2px_2px_0px_0px_#000]",
+          "bg-primary-weak text-primary-main border border-primary-weak2 rounded-full px-2.5 py-0.5",
+        // NOL 공지형 솔리드 파랑 배지
+        notice:
+          "bg-primary-main text-static-white rounded-full px-2 py-0.5",
+        // NOL 할인/긴박/HOT 배지 (연빨강 바탕 + 빨강 글자)
+        accent:
+          "bg-accent-weak text-accent-main rounded-[6px] px-2 py-0.5 font-bold",
+        // NOL 카드 텍스트 레이블 배지 (연회색 바탕 + 보조 글자)
+        label:
+          "bg-neutral-weak1 text-neutral-strong1 rounded-[6px] px-2 py-0.5",
+        // 인증 / 서브 배지
+        neutral:
+          "bg-neutral-weak text-neutral-main border border-neutral-weak2 rounded-full px-2.5 py-0.5",
+        outline:
+          "border border-neutral-weak3 bg-static-white text-neutral-main rounded-full px-2.5 py-0.5",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "primary",
     },
   }
 );

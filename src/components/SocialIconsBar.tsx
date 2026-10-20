@@ -31,38 +31,38 @@ export function SocialIconsBar({ socials }: SocialIconsBarProps) {
   const renderIcon = (platform: SocialLink["platform"]) => {
     switch (platform) {
       case "github":
-        return <GithubIcon className="w-5 h-5" />;
+        return <GithubIcon className="w-4 h-4" />;
       case "youtube":
-        return <YoutubeIcon className="w-5 h-5" />;
+        return <YoutubeIcon className="w-4 h-4 text-accent-main" />;
       case "twitter":
-        return <TwitterIcon className="w-5 h-5" />;
+        return <TwitterIcon className="w-4 h-4" />;
       case "instagram":
-        return <InstagramIcon className="w-5 h-5" />;
+        return <InstagramIcon className="w-4 h-4" />;
       case "linkedin":
-        return <LinkedinIcon className="w-5 h-5" />;
+        return <LinkedinIcon className="w-4 h-4" />;
       case "discord":
-        return <DiscordIcon className="w-5 h-5" />;
+        return <DiscordIcon className="w-4 h-4" />;
       case "email":
-        return <Mail className="w-5 h-5" />;
+        return <Mail className="w-4 h-4" />;
       case "blog":
-        return <BookOpen className="w-5 h-5" />;
+        return <BookOpen className="w-4 h-4" />;
       case "threads":
-        return <AtSign className="w-5 h-5" />;
+        return <AtSign className="w-4 h-4" />;
       default:
-        return <Globe className="w-5 h-5" />;
+        return <Globe className="w-4 h-4" />;
     }
   };
 
   return (
-    <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 my-4 flex-wrap">
+    <div className="flex items-center justify-center gap-2 my-4 flex-wrap">
       {activeSocials.map((social) => (
         <Button
           key={social.id}
           asChild
-          variant="neo"
-          size="icon"
+          variant="outline"
+          size="iconSm"
           title={social.platform}
-          className="rounded-xl w-10 h-10 sm:w-11 sm:h-11 p-0"
+          className="w-10 h-10 rounded-[12px] border-neutral-weak2 bg-static-white text-neutral-main hover:bg-primary-weak hover:text-primary-main hover:border-primary-weak2 transition-all"
         >
           <a
             href={social.url}

@@ -6,27 +6,25 @@ import { Button } from "@/components/ui/button";
 
 export function WindowHeader({ onShare }: { onShare: () => void }) {
   return (
-    <div className="bg-brand-yellow border-b-2 sm:border-b-3 border-black px-4 py-3 flex items-center justify-between">
-      {/* 레트로 맥 OS 스타일 컨트롤 버튼 */}
+    <div className="bg-static-white border-b border-neutral-weak2 px-5 py-3.5 flex items-center justify-between">
+      {/* NOL 스타일 클린 헤더 라벨 */}
       <div className="flex items-center gap-2">
-        <span className="w-3.5 h-3.5 rounded-full bg-[#FF5F56] border-2 border-black inline-block shadow-[1px_1px_0px_0px_#000]" />
-        <span className="w-3.5 h-3.5 rounded-full bg-[#FFBD2E] border-2 border-black inline-block shadow-[1px_1px_0px_0px_#000]" />
-        <span className="w-3.5 h-3.5 rounded-full bg-[#27C93F] border-2 border-black inline-block shadow-[1px_1px_0px_0px_#000]" />
-        <span className="ml-2 font-mono font-black text-xs sm:text-sm tracking-tight text-black">
-          ~/mylink/@shinyong
+        <span className="w-2.5 h-2.5 rounded-full bg-primary-main inline-block" />
+        <span className="font-semibold text-xs text-neutral-main tracking-tight">
+          mylink.com/@shinyong
         </span>
       </div>
 
-      {/* 우측 공유 버튼 (Shadcn Button 기반) */}
+      {/* 우측 공유 버튼: NOL 알약형 버튼 */}
       <Button
         onClick={onShare}
-        variant="neo"
+        variant="outline"
         size="sm"
         title="프로필 공유하기"
-        className="px-2.5 py-1 text-xs"
+        className="rounded-full text-xs font-semibold px-3 py-1 h-7 text-neutral-main hover:text-primary-main hover:border-primary-weak2"
       >
-        <span>SHARE</span>
-        <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
+        <span>공유</span>
+        <Share2 className="w-3.5 h-3.5 stroke-[2.2]" />
       </Button>
     </div>
   );
@@ -40,28 +38,28 @@ export function BottomActions({
   email?: string;
 }) {
   return (
-    <div className="mt-8 pt-6 border-t-2 sm:border-t-3 border-black flex flex-col sm:flex-row gap-3">
-      {/* Shadcn Button: 전체 프로필 링크 복사 */}
+    <div className="mt-8 pt-6 border-t border-neutral-weak2 flex flex-col sm:flex-row gap-3">
+      {/* NOL 1차 CTA 버튼: primary-main (#4154FF) */}
       <Button
         onClick={onCopyAll}
-        variant="neoYellow"
+        variant="primary"
         size="lg"
-        className="flex-1 text-sm text-black"
+        className="flex-1 rounded-[16px] text-sm font-bold shadow-sm"
       >
-        <Copy className="w-4 h-4" />
+        <Copy className="w-4 h-4 mr-1.5" />
         <span>전체 프로필 링크 복사</span>
       </Button>
 
-      {/* Shadcn Button: 이메일 바로 문의하기 */}
+      {/* NOL 2차 버튼: primary-weak 면 + primary-main 글자 */}
       {email && (
         <Button
           asChild
-          variant="neoWhite"
+          variant="secondary"
           size="lg"
-          className="flex-1 text-sm text-black"
+          className="flex-1 rounded-[16px] text-sm font-bold"
         >
           <a href={`mailto:${email}`}>
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 mr-1.5" />
             <span>메일 문의하기</span>
           </a>
         </Button>

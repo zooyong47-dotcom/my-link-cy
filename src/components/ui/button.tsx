@@ -5,40 +5,43 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-main focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
   {
     variants: {
       variant: {
+        // NOL 1차 버튼: primary-main (#4154FF) -> hover #2432AD
+        primary:
+          "bg-primary-main text-static-white hover:bg-primary-presshover active:bg-primary-presshover shadow-sm",
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "bg-primary-main text-static-white hover:bg-primary-presshover active:bg-primary-presshover shadow-sm",
+        // NOL 2차 버튼: primary-weak (#F5F6FF) 면 + primary-main 글자
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        // 🌟 Reusable Neobrutalism Shadcn/ui Variants
-        neo: "border-2 border-black bg-white text-black font-black shadow-[3px_3px_0px_0px_#000] hover:bg-brand-yellow hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
-        neoYellow:
-          "border-2 border-black bg-brand-yellow text-black font-black shadow-[4px_4px_0px_0px_#000] hover:bg-brand-yellow-hover hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
-        neoDark:
-          "border-2 border-black bg-black text-white font-black shadow-[3px_3px_0px_0px_#000] hover:bg-zinc-800 hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
-        neoWhite:
-          "border-2 border-black bg-white text-black font-black shadow-[4px_4px_0px_0px_#000] hover:bg-zinc-100 hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
+          "bg-primary-weak text-primary-main hover:bg-primary-weak1 active:bg-primary-weak1",
+        // NOL 아웃라인: 1px neutral-weak2/3 선
+        outline:
+          "border border-neutral-weak2 bg-static-white text-neutral-main hover:bg-neutral-weak1 hover:border-neutral-weak3",
+        ghost:
+          "text-neutral-main hover:bg-neutral-weak1 hover:text-neutral-main",
+        // 알약형 칩 / 배너 CTA
+        pill:
+          "rounded-full bg-primary-weak text-primary-main border border-primary-weak2 hover:bg-primary-weak1",
+        neutralPill:
+          "rounded-full bg-neutral-weak text-neutral-main hover:bg-neutral-weak1",
+        link:
+          "text-primary-main underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-11 rounded-xl px-6 font-bold",
-        xl: "h-12 rounded-xl px-8 font-black text-base",
-        icon: "h-10 w-10 rounded-xl",
-        iconSm: "h-8 w-8 rounded-lg",
+        default: "h-11 px-5 rounded-[12px] text-sm",
+        sm: "h-9 px-3.5 rounded-[8px] text-xs font-medium",
+        lg: "h-12 px-6 rounded-[16px] text-base font-bold",
+        xl: "h-14 px-8 rounded-[16px] text-base font-bold",
+        icon: "h-10 w-10 rounded-[12px]",
+        iconSm: "h-8 w-8 rounded-[8px]",
+        pill: "h-9 px-4 rounded-full text-xs font-semibold",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "primary",
       size: "default",
     },
   }

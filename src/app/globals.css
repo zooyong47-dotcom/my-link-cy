@@ -1,58 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FFFDF0;
-  --foreground: #000000;
+  /* NOL Design System Semantic Mapping */
+  --background: #ffffff;
+  --foreground: #1B1C1F;
   --card: #ffffff;
-  --card-foreground: #000000;
+  --card-foreground: #1B1C1F;
   --popover: #ffffff;
-  --popover-foreground: #000000;
-  --primary: #000000;
+  --popover-foreground: #1B1C1F;
+  --primary: #4154FF;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #000000;
-  --input: #000000;
-  --ring: #000000;
-  --radius: 0.75rem;
+  --secondary: #F5F6FF;
+  --secondary-foreground: #4154FF;
+  --muted: #F7F8FB;
+  --muted-foreground: #6E6F73;
+  --accent: #FEF5F5;
+  --accent-foreground: #E5000F;
+  --destructive: #E5000F;
+  --destructive-foreground: #ffffff;
+  --border: #E9EAEF;
+  --input: #DADBDF;
+  --ring: #4154FF;
+  --radius: 16px;
 
-  /* Neobrutalism Custom Theme Tokens */
-  --brand-yellow: #FFE169;
-  --brand-yellow-hover: #FDE047;
-  --brand-bg: #FFFDF0;
-  --brand-cyan: #67E8F9;
-  --brand-pink: #F472B6;
-  --brand-green: #4ADE80;
-  --brand-purple: #C084FC;
-  --brand-orange: #FB923C;
-}
+  /* NOL Colors */
+  --nol-blue: #3549FF;
+  --primary-main: #4154FF;
+  --primary-presshover: #2432AD;
+  --primary-weak: #F5F6FF;
+  --primary-weak1: #DFE2FF;
+  --primary-weak2: #B2BAFF;
 
-.dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #18181b;
-  --card-foreground: #fafafa;
-  --popover: #18181b;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #18181b;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
+  --accent-main: #E5000F;
+  --accent-weak: #FEF5F5;
+
+  --neutral-main: #1B1C1F;
+  --neutral-strong1: #6E6F73;
+  --neutral-medium: #8B8D92;
+  --neutral-weak4: #B6B7BB;
+  --neutral-weak3: #DADBDF;
+  --neutral-weak2: #E9EAEF;
+  --neutral-weak1: #F2F3F7;
+  --neutral-weak: #F7F8FB;
+  --neutral-veryweak: #FAFBFD;
+  --static-white: #ffffff;
+  --static-black: #000000;
 }
 
 @theme inline {
@@ -76,46 +68,57 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-brand-yellow: var(--brand-yellow);
-  --color-brand-yellow-hover: var(--brand-yellow-hover);
-  --color-brand-bg: var(--brand-bg);
-  --color-brand-cyan: var(--brand-cyan);
-  --color-brand-pink: var(--brand-pink);
-  --color-brand-green: var(--brand-green);
-  --color-brand-purple: var(--brand-purple);
-  --color-brand-orange: var(--brand-orange);
+  /* NOL specific color utilities */
+  --color-nol-blue: var(--nol-blue);
+  --color-primary-main: var(--primary-main);
+  --color-primary-presshover: var(--primary-presshover);
+  --color-primary-weak: var(--primary-weak);
+  --color-primary-weak1: var(--primary-weak1);
+  --color-primary-weak2: var(--primary-weak2);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent-main: var(--accent-main);
+  --color-accent-weak: var(--accent-weak);
+
+  --color-neutral-main: var(--neutral-main);
+  --color-neutral-strong1: var(--neutral-strong1);
+  --color-neutral-medium: var(--neutral-medium);
+  --color-neutral-weak4: var(--neutral-weak4);
+  --color-neutral-weak3: var(--neutral-weak3);
+  --color-neutral-weak2: var(--neutral-weak2);
+  --color-neutral-weak1: var(--neutral-weak1);
+  --color-neutral-weak: var(--neutral-weak);
+  --color-neutral-veryweak: var(--neutral-veryweak);
+  --color-static-white: var(--static-white);
+  --color-static-black: var(--static-black);
+
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-20: 20px;
+  --radius-24: 24px;
+  --radius-28: 28px;
+  --radius-capsule: 9999px;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  background-color: #ffffff !important;
+  color: var(--neutral-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard, Roboto, "Noto Sans KR", sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Neobrutalism Marquee Animation */
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+/* NOL Elevation */
+.shadow-nol-1 {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
 }
 
-.animate-marquee {
-  display: flex;
-  width: 200%;
-  animation: marquee 16s linear infinite;
+.shadow-nol-2 {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
 }
 
-.animate-marquee:hover {
-  animation-play-state: paused;
+.shadow-nol-3 {
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
 }
