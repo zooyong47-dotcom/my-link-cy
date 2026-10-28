@@ -45,16 +45,6 @@ export const createLinkSchema = z.object({
         return false;
       }
     }, "올바른 도메인 주소를 입력해 주세요. (예: github.com)"),
-  subtitle: z
-    .string()
-    .max(60, "설명은 최대 60자까지 입력 가능합니다.")
-    .optional(),
-  badge: z
-    .string()
-    .max(10, "뱃지는 최대 10자까지 입력 가능합니다.")
-    .optional(),
-  icon: z.string(),
-  highlight: z.boolean(),
 });
 
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;

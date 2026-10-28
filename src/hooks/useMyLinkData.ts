@@ -3,12 +3,26 @@
 import { useState, useEffect, useCallback } from "react";
 import { MyLinkProfile, CustomLink } from "@/types/mylink";
 import { MOCK_PROFILE, MOCK_CUSTOM_LINKS } from "@/data/mockData";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  serverTimestamp,
+  increment,
+} from "firebase/firestore";
 
 const PROFILE_STORAGE_KEY = "mylink_profile";
 const LINKS_STORAGE_KEY = "mylink_links";
 
+// Firestore 저장 경로: user/anonymous/links
+const FIRESTORE_COLLECTION_PATH = ["user", "anonymous", "links"] as const;
+
 export function useMyLinkData() {
   const [profile, setProfile] = useState<MyLinkProfile>(MOCK_PROFILE);
+  // 테스트 모드: 화면에는 기본 목(Mock) 링크 목록 유지
   const [links, setLinks] = useState<CustomLink[]>(MOCK_CUSTOM_LINKS);
   const [isLoaded, setIsLoaded] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -23,47 +37,28 @@ export function useMyLinkData() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 🔄 LocalStorage 로드 & 자동 시딩 (Auto-seeding)
+  // 🔄 LocalStorage 프로필 로드 (테스트 모드 화면 유지)
   useEffect(() => {
+    // 1. 프로필 로드 (LocalStorage 캐시 활용)
     try {
       const savedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-      const savedLinks = localStorage.getItem(LINKS_STORAGE_KEY);
-
       if (savedProfile) {
         setProfile(JSON.parse(savedProfile));
       } else {
-        // 자동 시딩
         localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(MOCK_PROFILE));
       }
-
-      if (savedLinks) {
-        try {
-          const parsed: CustomLink[] = JSON.parse(savedLinks);
-          // '123'으로 된 테스트 링크 자동 정리
-          const cleaned = parsed.filter(
-            (link) => link.title.trim() !== "123" && link.url.trim() !== "123"
-          );
-          if (cleaned.length !== parsed.length) {
-            localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(cleaned));
-          }
-          setLinks(cleaned);
-        } catch {
-          setLinks(MOCK_CUSTOM_LINKS);
-        }
-      } else {
-        // 자동 시딩
-        localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(MOCK_CUSTOM_LINKS));
-      }
     } catch (e) {
-      console.warn("LocalStorage access failed or unavailable:", e);
-    } finally {
-      setIsLoaded(true);
+      console.warn("Profile storage access failed:", e);
     }
+
+    // 2. 테스트 모드: 화면에는 항상 기본 테스트 링크 데이터(MOCK_CUSTOM_LINKS)를 표시
+    setLinks(MOCK_CUSTOM_LINKS);
+    setIsLoaded(true);
   }, []);
 
-  // ➕ 새 링크 추가 핸들러 (로컬 상태 + LocalStorage 동기화)
+  // ➕ 새 링크 추가 핸들러 (Firestore 'user/anonymous/links' 에만 저장하고 화면에는 띄우지 않음)
   const addLink = useCallback(
-    (newLinkData: {
+    async (newLinkData: {
       title: string;
       url: string;
       subtitle?: string;
@@ -71,46 +66,69 @@ export function useMyLinkData() {
       icon?: string;
       highlight?: boolean;
     }) => {
-      const newLink: CustomLink = {
-        id: `link-${Date.now()}`,
-        title: newLinkData.title.trim(),
-        url: newLinkData.url.trim(),
-        subtitle: newLinkData.subtitle?.trim() || undefined,
-        badge: newLinkData.badge?.trim() || undefined,
-        icon: newLinkData.icon || "globe",
-        highlight: !!newLinkData.highlight,
-        enabled: true,
-        clicks: 0,
-      };
+      try {
+        const title = newLinkData.title.trim();
+        const url = newLinkData.url.trim();
 
-      setLinks((prevLinks) => {
-        const updated = [newLink, ...prevLinks];
-        try {
-          localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {
-          console.warn("Failed to save new link to LocalStorage:", e);
+        // Firestore 저장 데이터 구성
+        const docData: Record<string, any> = {
+          title,
+          url,
+          icon: newLinkData.icon || "globe",
+          highlight: !!newLinkData.highlight,
+          enabled: true,
+          clicks: 0,
+          createdAt: serverTimestamp(),
+        };
+
+        if (newLinkData.subtitle && newLinkData.subtitle.trim()) {
+          docData.subtitle = newLinkData.subtitle.trim();
         }
-        return updated;
-      });
+        if (newLinkData.badge && newLinkData.badge.trim()) {
+          docData.badge = newLinkData.badge.trim();
+        }
 
-      showToast("새 링크가 성공적으로 추가되었습니다! 🎉", "success");
-      return newLink;
+        // 1. Firestore 'user/anonymous/links' 컬렉션에 새 문서 추가 (파이어베이스 DB에 정상 저장됨)
+        const linksColRef = collection(db, ...FIRESTORE_COLLECTION_PATH);
+        const docRef = await addDoc(linksColRef, docData);
+
+        const createdLink: CustomLink = {
+          id: docRef.id,
+          title,
+          url,
+          subtitle: newLinkData.subtitle?.trim() || undefined,
+          badge: newLinkData.badge?.trim() || undefined,
+          icon: newLinkData.icon || "globe",
+          highlight: !!newLinkData.highlight,
+          enabled: true,
+          clicks: 0,
+          createdAt: Date.now(),
+        };
+
+        // 2. 테스트 모드 요구사항: 파이어베이스에는 저장되지만 화면 UI(links state)에는 추가하지 않음
+        showToast("새 링크가 파이어베이스에 성공적으로 추가되었습니다! 🔥", "success");
+        return createdLink;
+      } catch (error: any) {
+        console.error("Firestore addLink error:", error);
+        showToast("파이어베이스 저장에 실패했습니다. 다시 시도해 주세요.", "error");
+        throw error;
+      }
     },
     [showToast]
   );
 
-  // 🗑️ 링크 삭제 핸들러 (로컬 상태 + LocalStorage 동기화)
+  // 🗑️ 링크 삭제 핸들러 (테스트 화면 상태 반영)
   const deleteLink = useCallback(
-    (linkId: string) => {
-      setLinks((prevLinks) => {
-        const updated = prevLinks.filter((link) => link.id !== linkId);
-        try {
-          localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {
-          console.warn("Failed to delete link in LocalStorage:", e);
-        }
-        return updated;
-      });
+    async (linkId: string) => {
+      setLinks((prevLinks) => prevLinks.filter((link) => link.id !== linkId));
+
+      try {
+        const docRef = doc(db, FIRESTORE_COLLECTION_PATH[0], FIRESTORE_COLLECTION_PATH[1], FIRESTORE_COLLECTION_PATH[2], linkId);
+        await deleteDoc(docRef);
+      } catch (e) {
+        console.warn("Firestore deleteDoc note (could be local mock):", e);
+      }
+
       showToast("링크가 삭제되었습니다. 🗑️", "success");
     },
     [showToast]
@@ -119,7 +137,7 @@ export function useMyLinkData() {
   // 📈 링크 클릭수 증가 핸들러
   const trackLinkClick = useCallback((linkId: string) => {
     setLinks((prevLinks) => {
-      const updated = prevLinks.map((link) => {
+      return prevLinks.map((link) => {
         if (link.id === linkId) {
           return {
             ...link,
@@ -128,15 +146,18 @@ export function useMyLinkData() {
         }
         return link;
       });
-
-      try {
-        localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.warn("Failed to update clicks in LocalStorage:", e);
-      }
-
-      return updated;
     });
+
+    try {
+      const docRef = doc(db, FIRESTORE_COLLECTION_PATH[0], FIRESTORE_COLLECTION_PATH[1], FIRESTORE_COLLECTION_PATH[2], linkId);
+      updateDoc(docRef, {
+        clicks: increment(1),
+      }).catch((e) => {
+        console.warn("Firestore increment note (could be local mock):", e);
+      });
+    } catch (e) {
+      console.warn("Firestore click increment error:", e);
+    }
   }, []);
 
   // 📋 클립보드 복사 유틸리티
