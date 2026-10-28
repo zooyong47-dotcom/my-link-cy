@@ -132,7 +132,7 @@ export default function MyLinkPage() {
                 {/* 🔄 수동 새로고침 버튼 */}
                 <button
                   type="button"
-                  onClick={refreshLinks}
+                  onClick={() => refreshLinks()}
                   disabled={isSyncing}
                   className="w-7 h-7 rounded-full flex items-center justify-center text-neutral-strong1 hover:text-primary-main hover:bg-neutral-weak2/60 transition-all cursor-pointer disabled:opacity-50"
                   title="링크 목록 새로고침"
