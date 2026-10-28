@@ -11,15 +11,17 @@ import {
   MessageCircle,
   ChevronRight,
   MousePointerClick,
+  Trash2,
 } from "lucide-react";
 import { GithubIcon, FigmaIcon, YoutubeIcon } from "@/components/icons";
 
 interface LinkCardProps {
   link: CustomLink;
   onLinkClick?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-export function LinkCard({ link, onLinkClick }: LinkCardProps) {
+export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
   const renderIcon = (iconName?: string) => {
     switch (iconName) {
       case "globe":
@@ -94,14 +96,34 @@ export function LinkCard({ link, onLinkClick }: LinkCardProps) {
           </div>
         </div>
 
-        {/* 우측 바로가기 액션 / 클릭수 */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* 우측 바로가기 액션 / 클릭수 / 삭제 버튼 */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {typeof link.clicks === "number" && link.clicks > 0 && (
             <span className="hidden sm:flex items-center gap-1 text-[11px] font-mono text-neutral-medium bg-neutral-weak px-2 py-0.5 rounded-full border border-neutral-weak2">
               <MousePointerClick className="w-3 h-3 text-neutral-strong1" />
               {link.clicks.toLocaleString()}
             </span>
           )}
+
+          {/* 🗑️ 링크 삭제 버튼 */}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm(`'${link.title}' 링크를 삭제하시겠습니까?`)) {
+                  onDelete(link.id);
+                }
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-weak4 hover:text-accent-main hover:bg-accent-weak transition-all cursor-pointer"
+              title="링크 삭제"
+              aria-label="링크 삭제"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-medium group-hover:text-primary-main group-hover:translate-x-0.5 transition-all">
             <ChevronRight className="w-5 h-5 stroke-[2]" />
           </div>

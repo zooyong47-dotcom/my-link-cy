@@ -37,7 +37,19 @@ export function useMyLinkData() {
       }
 
       if (savedLinks) {
-        setLinks(JSON.parse(savedLinks));
+        try {
+          const parsed: CustomLink[] = JSON.parse(savedLinks);
+          // '123'으로 된 테스트 링크 자동 정리
+          const cleaned = parsed.filter(
+            (link) => link.title.trim() !== "123" && link.url.trim() !== "123"
+          );
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(cleaned));
+          }
+          setLinks(cleaned);
+        } catch {
+          setLinks(MOCK_CUSTOM_LINKS);
+        }
       } else {
         // 자동 시딩
         localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(MOCK_CUSTOM_LINKS));
@@ -48,6 +60,61 @@ export function useMyLinkData() {
       setIsLoaded(true);
     }
   }, []);
+
+  // ➕ 새 링크 추가 핸들러 (로컬 상태 + LocalStorage 동기화)
+  const addLink = useCallback(
+    (newLinkData: {
+      title: string;
+      url: string;
+      subtitle?: string;
+      badge?: string;
+      icon?: string;
+      highlight?: boolean;
+    }) => {
+      const newLink: CustomLink = {
+        id: `link-${Date.now()}`,
+        title: newLinkData.title.trim(),
+        url: newLinkData.url.trim(),
+        subtitle: newLinkData.subtitle?.trim() || undefined,
+        badge: newLinkData.badge?.trim() || undefined,
+        icon: newLinkData.icon || "globe",
+        highlight: !!newLinkData.highlight,
+        enabled: true,
+        clicks: 0,
+      };
+
+      setLinks((prevLinks) => {
+        const updated = [newLink, ...prevLinks];
+        try {
+          localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Failed to save new link to LocalStorage:", e);
+        }
+        return updated;
+      });
+
+      showToast("새 링크가 성공적으로 추가되었습니다! 🎉", "success");
+      return newLink;
+    },
+    [showToast]
+  );
+
+  // 🗑️ 링크 삭제 핸들러 (로컬 상태 + LocalStorage 동기화)
+  const deleteLink = useCallback(
+    (linkId: string) => {
+      setLinks((prevLinks) => {
+        const updated = prevLinks.filter((link) => link.id !== linkId);
+        try {
+          localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Failed to delete link in LocalStorage:", e);
+        }
+        return updated;
+      });
+      showToast("링크가 삭제되었습니다. 🗑️", "success");
+    },
+    [showToast]
+  );
 
   // 📈 링크 클릭수 증가 핸들러
   const trackLinkClick = useCallback((linkId: string) => {
@@ -106,6 +173,8 @@ export function useMyLinkData() {
     toastMessage,
     toastType,
     showToast,
+    addLink,
+    deleteLink,
     trackLinkClick,
     copyToClipboard,
   };

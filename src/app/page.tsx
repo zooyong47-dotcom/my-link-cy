@@ -1,16 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useMyLinkData } from "@/hooks/useMyLinkData";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { SocialIconsBar } from "@/components/SocialIconsBar";
 import { LinkCard } from "@/components/LinkCard";
+import { AddLinkDialog } from "@/components/AddLinkDialog";
 import { WindowHeader, BottomActions } from "@/components/ShareUtility";
 import { Toast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Layers } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Layers, Plus } from "lucide-react";
 
 export default function MyLinkPage() {
   const {
@@ -18,9 +20,13 @@ export default function MyLinkPage() {
     links,
     toastMessage,
     toastType,
+    addLink,
+    deleteLink,
     trackLinkClick,
     copyToClipboard,
   } = useMyLinkData();
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const handleShare = async () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -56,6 +62,13 @@ export default function MyLinkPage() {
       {/* 🍞 NOL 스타일 토스트 피드백 */}
       <Toast message={toastMessage} type={toastType} />
 
+      {/* ➕ 새 링크 추가 다이얼로그 (모달) */}
+      <AddLinkDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onAddLink={addLink}
+      />
+
       {/* 💻 NOL 스타일 메인 프로필 카드 (rounded-[24px] ~ [28px], 1px 테두리, 클린 룩) */}
       <Card className="w-full max-w-lg bg-static-white border border-neutral-weak2 rounded-[24px] sm:rounded-[28px] shadow-sm overflow-hidden">
         {/* 상단 윈도우 헤더 바 */}
@@ -90,7 +103,7 @@ export default function MyLinkPage() {
           {/* 🌐 소셜 아이콘 바 */}
           <SocialIconsBar socials={profile.socials} />
 
-          {/* 🔗 링크 목록 섹션 헤더 (NOL 타이포그래피 & 뱃지) */}
+          {/* 🔗 링크 목록 섹션 헤더 (NOL 타이포그래피 & 뱃지 + 추가 버튼) */}
           <div className="mt-7 mb-3.5 flex items-center justify-between border-b border-neutral-weak1 pb-2.5">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-primary-main" />
@@ -101,9 +114,15 @@ export default function MyLinkPage() {
                 {enabledLinks.length}
               </Badge>
             </div>
-            <span className="text-xs font-medium text-neutral-medium">
-              CLICK TO VISIT ↗
-            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setIsAddDialogOpen(true)}
+              className="h-7 text-xs px-2.5 rounded-full font-bold hover:bg-primary-weak1 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5 mr-0.5" />
+              새 링크 추가
+            </Button>
           </div>
 
           {/* 🔗 링크 목록 카드 렌더링 */}
@@ -114,13 +133,26 @@ export default function MyLinkPage() {
                   key={link.id}
                   link={link}
                   onLinkClick={trackLinkClick}
+                  onDelete={deleteLink}
                 />
               ))
             ) : (
-              <div className="text-center py-8 text-neutral-medium font-medium text-sm">
+              <div className="text-center py-8 text-neutral-medium font-medium text-sm border border-dashed border-neutral-weak2 rounded-[16px] bg-neutral-weak/30">
                 등록된 활성 링크가 없습니다.
               </div>
             )}
+
+            {/* 링크 추가 바로가기 점선 버튼 */}
+            <button
+              type="button"
+              onClick={() => setIsAddDialogOpen(true)}
+              className="w-full py-3 px-4 rounded-[16px] border border-dashed border-neutral-weak3 hover:border-primary-main text-neutral-strong1 hover:text-primary-main bg-neutral-weak/40 hover:bg-primary-weak/40 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold cursor-pointer group"
+            >
+              <div className="w-6 h-6 rounded-full bg-neutral-weak2 group-hover:bg-primary-weak1 flex items-center justify-center transition-colors">
+                <Plus className="w-3.5 h-3.5 group-hover:text-primary-main" />
+              </div>
+              <span>새 링크 카드 추가하기</span>
+            </button>
           </div>
 
           {/* 📬 하단 액션 버튼 */}
