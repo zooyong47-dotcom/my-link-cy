@@ -12,6 +12,7 @@ import {
   ChevronRight,
   MousePointerClick,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { GithubIcon, FigmaIcon, YoutubeIcon } from "@/components/icons";
 
@@ -19,9 +20,10 @@ interface LinkCardProps {
   link: CustomLink;
   onLinkClick?: (id: string) => void;
   onDelete?: (id: string) => void;
+  isDeleting?: boolean;
 }
 
-export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
+export function LinkCard({ link, onLinkClick, onDelete, isDeleting = false }: LinkCardProps) {
   const renderIcon = (iconName?: string) => {
     switch (iconName) {
       case "globe":
@@ -57,7 +59,9 @@ export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
       target={link.url.startsWith("http") ? "_blank" : "_self"}
       rel="noopener noreferrer"
       onClick={handleClick}
-      className="block group cursor-pointer focus-visible:outline-none"
+      className={`block group cursor-pointer focus-visible:outline-none transition-opacity duration-200 ${
+        isDeleting ? "opacity-50 pointer-events-none" : ""
+      }`}
     >
       <Card
         variant="interactive"
@@ -65,7 +69,7 @@ export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
           isHighlighted
             ? "border-primary-weak2 bg-primary-weak/30 hover:border-primary-main"
             : ""
-        }`}
+        } ${isDeleting ? "bg-neutral-weak/50" : ""}`}
       >
         <div className="flex items-center gap-3.5 min-w-0">
           {/* 아이콘 프레임: NOL 12px 둥근 모서리 + 부드러운 배경 */}
@@ -109,6 +113,7 @@ export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
           {onDelete && (
             <button
               type="button"
+              disabled={isDeleting}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -116,11 +121,15 @@ export function LinkCard({ link, onLinkClick, onDelete }: LinkCardProps) {
                   onDelete(link.id);
                 }
               }}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-weak4 hover:text-accent-main hover:bg-accent-weak transition-all cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-weak4 hover:text-accent-main hover:bg-accent-weak transition-all cursor-pointer disabled:cursor-not-allowed"
               title="링크 삭제"
               aria-label="링크 삭제"
             >
-              <Trash2 className="w-4 h-4" />
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-accent-main" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
             </button>
           )}
 

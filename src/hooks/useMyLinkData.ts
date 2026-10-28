@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { MyLinkProfile, CustomLink } from "@/types/mylink";
-import { MOCK_PROFILE, MOCK_CUSTOM_LINKS } from "@/data/mockData";
+import { MOCK_PROFILE } from "@/data/mockData";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -10,21 +10,36 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
+  getDocs,
+  query,
+  orderBy,
+  onSnapshot,
   serverTimestamp,
   increment,
 } from "firebase/firestore";
 
 const PROFILE_STORAGE_KEY = "mylink_profile";
-const LINKS_STORAGE_KEY = "mylink_links";
 
-// Firestore 저장 경로: user/anonymous/links
-const FIRESTORE_COLLECTION_PATH = ["user", "anonymous", "links"] as const;
+// Firestore 저장 및 조회 경로: users/anonymous/links
+const FIRESTORE_COLLECTION_PATH = ["users", "anonymous", "links"] as const;
+
+function parseTimestamp(val: any): number {
+  if (!val) return 0;
+  if (typeof val.toMillis === "function") return val.toMillis();
+  if (typeof val.toDate === "function") return val.toDate().getTime();
+  if (typeof val.seconds === "number") return val.seconds * 1000;
+  if (typeof val === "number") return val;
+  if (val instanceof Date) return val.getTime();
+  const parsed = new Date(val).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
 
 export function useMyLinkData() {
   const [profile, setProfile] = useState<MyLinkProfile>(MOCK_PROFILE);
-  // 테스트 모드: 화면에는 기본 목(Mock) 링크 목록 유지
-  const [links, setLinks] = useState<CustomLink[]>(MOCK_CUSTOM_LINKS);
+  const [links, setLinks] = useState<CustomLink[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<"success" | "error">("success");
 
@@ -37,7 +52,7 @@ export function useMyLinkData() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 🔄 LocalStorage 프로필 로드 (테스트 모드 화면 유지)
+  // 🔄 LocalStorage 프로필 로드 & Firestore 실시간 링크 목록 구독 (최신순 정렬)
   useEffect(() => {
     // 1. 프로필 로드 (LocalStorage 캐시 활용)
     try {
@@ -51,12 +66,103 @@ export function useMyLinkData() {
       console.warn("Profile storage access failed:", e);
     }
 
-    // 2. 테스트 모드: 화면에는 항상 기본 테스트 링크 데이터(MOCK_CUSTOM_LINKS)를 표시
-    setLinks(MOCK_CUSTOM_LINKS);
-    setIsLoaded(true);
+    // 2. Firestore 'users/anonymous/links' 에서 createdAt 기준 최신순 실시간 구독
+    setIsSyncing(true);
+    const linksColRef = collection(db, ...FIRESTORE_COLLECTION_PATH);
+    const linksQuery = query(linksColRef, orderBy("createdAt", "desc"));
+
+    let fallbackUnsubscribe: (() => void) | null = null;
+
+    const unsubscribe = onSnapshot(
+      linksQuery,
+      (snapshot) => {
+        setIsSyncing(true);
+        const fetchedLinks: CustomLink[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            title: data.title || "제목 없음",
+            url: data.url || "",
+            subtitle: data.subtitle || undefined,
+            description: data.description || undefined,
+            badge: data.badge || undefined,
+            category: data.category || undefined,
+            enabled: data.enabled !== undefined ? data.enabled : true,
+            highlight: !!data.highlight,
+            clicks: data.clicks || 0,
+            icon: data.icon || "globe",
+            bgColor: data.bgColor || undefined,
+            badgeColor: data.badgeColor || undefined,
+            createdAt: data.createdAt || data.createdAT || undefined,
+          };
+        });
+
+        // 클라이언트 측 최신순 정렬 보장 (createdAt / createdAT 기준)
+        fetchedLinks.sort((a, b) => {
+          const tA = parseTimestamp(a.createdAt);
+          const tB = parseTimestamp(b.createdAt);
+          return tB - tA;
+        });
+
+        setLinks(fetchedLinks);
+        setIsLoaded(true);
+        // 부드러운 UI 전환을 위한 딜레이 후 갱신 상태 해제
+        setTimeout(() => setIsSyncing(false), 300);
+      },
+      (error) => {
+        console.warn("Firestore ordered query failed, falling back to unordered listener:", error);
+        fallbackUnsubscribe = onSnapshot(
+          linksColRef,
+          (fallbackSnapshot) => {
+            setIsSyncing(true);
+            const fetchedLinks: CustomLink[] = fallbackSnapshot.docs.map((docSnap) => {
+              const data = docSnap.data();
+              return {
+                id: docSnap.id,
+                title: data.title || "제목 없음",
+                url: data.url || "",
+                subtitle: data.subtitle || undefined,
+                description: data.description || undefined,
+                badge: data.badge || undefined,
+                category: data.category || undefined,
+                enabled: data.enabled !== undefined ? data.enabled : true,
+                highlight: !!data.highlight,
+                clicks: data.clicks || 0,
+                icon: data.icon || "globe",
+                bgColor: data.bgColor || undefined,
+                badgeColor: data.badgeColor || undefined,
+                createdAt: data.createdAt || data.createdAT || undefined,
+              };
+            });
+
+            fetchedLinks.sort((a, b) => {
+              const tA = parseTimestamp(a.createdAt);
+              const tB = parseTimestamp(b.createdAt);
+              return tB - tA;
+            });
+
+            setLinks(fetchedLinks);
+            setIsLoaded(true);
+            setTimeout(() => setIsSyncing(false), 300);
+          },
+          (fallbackError) => {
+            console.error("Firestore fallback onSnapshot error:", fallbackError);
+            setIsLoaded(true);
+            setIsSyncing(false);
+          }
+        );
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      if (fallbackUnsubscribe) {
+        fallbackUnsubscribe();
+      }
+    };
   }, []);
 
-  // ➕ 새 링크 추가 핸들러 (Firestore 'user/anonymous/links' 에만 저장하고 화면에는 띄우지 않음)
+  // ➕ 새 링크 추가 핸들러 (Firestore 'users/anonymous/links' 에 추가 및 실시간 갱신)
   const addLink = useCallback(
     async (newLinkData: {
       title: string;
@@ -66,6 +172,7 @@ export function useMyLinkData() {
       icon?: string;
       highlight?: boolean;
     }) => {
+      setIsSyncing(true);
       try {
         const title = newLinkData.title.trim();
         const url = newLinkData.url.trim();
@@ -79,6 +186,7 @@ export function useMyLinkData() {
           enabled: true,
           clicks: 0,
           createdAt: serverTimestamp(),
+          createdAT: serverTimestamp(),
         };
 
         if (newLinkData.subtitle && newLinkData.subtitle.trim()) {
@@ -88,7 +196,7 @@ export function useMyLinkData() {
           docData.badge = newLinkData.badge.trim();
         }
 
-        // 1. Firestore 'user/anonymous/links' 컬렉션에 새 문서 추가 (파이어베이스 DB에 정상 저장됨)
+        // Firestore 'users/anonymous/links' 컬렉션에 새 문서 추가
         const linksColRef = collection(db, ...FIRESTORE_COLLECTION_PATH);
         const docRef = await addDoc(linksColRef, docData);
 
@@ -105,34 +213,84 @@ export function useMyLinkData() {
           createdAt: Date.now(),
         };
 
-        // 2. 테스트 모드 요구사항: 파이어베이스에는 저장되지만 화면 UI(links state)에는 추가하지 않음
-        showToast("새 링크가 파이어베이스에 성공적으로 추가되었습니다! 🔥", "success");
+        showToast("새 링크가 성공적으로 추가되었습니다! 🔥", "success");
         return createdLink;
       } catch (error: any) {
         console.error("Firestore addLink error:", error);
-        showToast("파이어베이스 저장에 실패했습니다. 다시 시도해 주세요.", "error");
+        showToast("링크 저장에 실패했습니다. 다시 시도해 주세요.", "error");
+        setIsSyncing(false);
         throw error;
       }
     },
     [showToast]
   );
 
-  // 🗑️ 링크 삭제 핸들러 (테스트 화면 상태 반영)
+  // 🗑️ 링크 삭제 핸들러 (삭제 진행 중 피드백 제공)
   const deleteLink = useCallback(
     async (linkId: string) => {
-      setLinks((prevLinks) => prevLinks.filter((link) => link.id !== linkId));
+      setDeletingId(linkId);
+      setIsSyncing(true);
 
       try {
-        const docRef = doc(db, FIRESTORE_COLLECTION_PATH[0], FIRESTORE_COLLECTION_PATH[1], FIRESTORE_COLLECTION_PATH[2], linkId);
+        const docRef = doc(db, ...FIRESTORE_COLLECTION_PATH, linkId);
         await deleteDoc(docRef);
+        // 상태에서도 즉시 제거
+        setLinks((prevLinks) => prevLinks.filter((link) => link.id !== linkId));
+        showToast("링크가 삭제되었습니다. 🗑️", "success");
       } catch (e) {
-        console.warn("Firestore deleteDoc note (could be local mock):", e);
+        console.error("Firestore deleteDoc error:", e);
+        showToast("링크 삭제에 실패했습니다.", "error");
+      } finally {
+        setDeletingId(null);
+        setTimeout(() => setIsSyncing(false), 200);
       }
-
-      showToast("링크가 삭제되었습니다. 🗑️", "success");
     },
     [showToast]
   );
+
+  // 🔄 수동 새로고침 / 동기화 핸들러
+  const refreshLinks = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const linksColRef = collection(db, ...FIRESTORE_COLLECTION_PATH);
+      const linksQuery = query(linksColRef, orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(linksQuery);
+
+      const fetchedLinks: CustomLink[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          title: data.title || "제목 없음",
+          url: data.url || "",
+          subtitle: data.subtitle || undefined,
+          description: data.description || undefined,
+          badge: data.badge || undefined,
+          category: data.category || undefined,
+          enabled: data.enabled !== undefined ? data.enabled : true,
+          highlight: !!data.highlight,
+          clicks: data.clicks || 0,
+          icon: data.icon || "globe",
+          bgColor: data.bgColor || undefined,
+          badgeColor: data.badgeColor || undefined,
+          createdAt: data.createdAt || data.createdAT || undefined,
+        };
+      });
+
+      fetchedLinks.sort((a, b) => {
+        const tA = parseTimestamp(a.createdAt);
+        const tB = parseTimestamp(b.createdAt);
+        return tB - tA;
+      });
+
+      setLinks(fetchedLinks);
+      showToast("링크 목록을 최신 상태로 동기화했습니다. ⚡", "success");
+    } catch (e) {
+      console.error("refreshLinks error:", e);
+      showToast("링크 목록 갱신에 실패했습니다.", "error");
+    } finally {
+      setTimeout(() => setIsSyncing(false), 300);
+    }
+  }, [showToast]);
 
   // 📈 링크 클릭수 증가 핸들러
   const trackLinkClick = useCallback((linkId: string) => {
@@ -149,11 +307,11 @@ export function useMyLinkData() {
     });
 
     try {
-      const docRef = doc(db, FIRESTORE_COLLECTION_PATH[0], FIRESTORE_COLLECTION_PATH[1], FIRESTORE_COLLECTION_PATH[2], linkId);
+      const docRef = doc(db, ...FIRESTORE_COLLECTION_PATH, linkId);
       updateDoc(docRef, {
         clicks: increment(1),
       }).catch((e) => {
-        console.warn("Firestore increment note (could be local mock):", e);
+        console.warn("Firestore increment note:", e);
       });
     } catch (e) {
       console.warn("Firestore click increment error:", e);
@@ -191,11 +349,14 @@ export function useMyLinkData() {
     profile,
     links,
     isLoaded,
+    isSyncing,
+    deletingId,
     toastMessage,
     toastType,
     showToast,
     addLink,
     deleteLink,
+    refreshLinks,
     trackLinkClick,
     copyToClipboard,
   };

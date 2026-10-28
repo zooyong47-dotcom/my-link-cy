@@ -12,16 +12,20 @@ import { Toast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Layers, Plus } from "lucide-react";
+import { Layers, Plus, Loader2, RotateCw } from "lucide-react";
 
 export default function MyLinkPage() {
   const {
     profile,
     links,
+    isLoaded,
+    isSyncing,
+    deletingId,
     toastMessage,
     toastType,
     addLink,
     deleteLink,
+    refreshLinks,
     trackLinkClick,
     copyToClipboard,
   } = useMyLinkData();
@@ -103,35 +107,73 @@ export default function MyLinkPage() {
           {/* 🌐 소셜 아이콘 바 */}
           <SocialIconsBar socials={profile.socials} />
 
-          {/* 🔗 링크 목록 섹션 헤더 (NOL 타이포그래피 & 뱃지 + 추가 버튼) */}
-          <div className="mt-7 mb-3.5 flex items-center justify-between border-b border-neutral-weak1 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary-main" />
-              <h2 className="font-bold text-sm tracking-tight text-neutral-main">
-                주요 링크
-              </h2>
-              <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4">
-                {enabledLinks.length}
-              </Badge>
+          {/* 🔗 링크 목록 섹션 헤더 (NOL 타이포그래피 & 뱃지 + 동기화 상태 + 추가 버튼) */}
+          <div className="mt-7 mb-3.5 border-b border-neutral-weak1 pb-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary-main" />
+                <h2 className="font-bold text-sm tracking-tight text-neutral-main">
+                  주요 링크
+                </h2>
+                <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4">
+                  {enabledLinks.length}
+                </Badge>
+
+                {/* 🔄 동기화 / 갱신 중 상태 표시 뱃지 */}
+                {isSyncing && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-main bg-primary-weak/90 border border-primary-weak2 px-2 py-0.5 rounded-full animate-in fade-in duration-200">
+                    <Loader2 className="w-3 h-3 animate-spin text-primary-main" />
+                    <span>갱신 중...</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {/* 🔄 수동 새로고침 버튼 */}
+                <button
+                  type="button"
+                  onClick={refreshLinks}
+                  disabled={isSyncing}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-neutral-strong1 hover:text-primary-main hover:bg-neutral-weak2/60 transition-all cursor-pointer disabled:opacity-50"
+                  title="링크 목록 새로고침"
+                  aria-label="링크 목록 새로고침"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary-main" : ""}`} />
+                </button>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="h-7 text-xs px-2.5 rounded-full font-bold hover:bg-primary-weak1 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-0.5" />
+                  새 링크 추가
+                </Button>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setIsAddDialogOpen(true)}
-              className="h-7 text-xs px-2.5 rounded-full font-bold hover:bg-primary-weak1 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5 mr-0.5" />
-              새 링크 추가
-            </Button>
+
+            {/* 🌊 갱신 중 상단 프로그레스 바 */}
+            {isSyncing && (
+              <div className="w-full h-0.5 bg-neutral-weak2 overflow-hidden rounded-full mt-2">
+                <div className="w-full h-full bg-primary-main animate-pulse" />
+              </div>
+            )}
           </div>
 
           {/* 🔗 링크 목록 카드 렌더링 */}
           <div className="space-y-2.5">
-            {enabledLinks.length > 0 ? (
+            {!isLoaded ? (
+              <div className="space-y-2.5 animate-pulse">
+                <div className="h-16 rounded-[18px] bg-neutral-weak2/60" />
+                <div className="h-16 rounded-[18px] bg-neutral-weak2/60" />
+              </div>
+            ) : enabledLinks.length > 0 ? (
               enabledLinks.map((link) => (
                 <LinkCard
                   key={link.id}
                   link={link}
+                  isDeleting={deletingId === link.id}
                   onLinkClick={trackLinkClick}
                   onDelete={deleteLink}
                 />
