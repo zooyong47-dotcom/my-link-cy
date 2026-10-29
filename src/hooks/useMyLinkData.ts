@@ -302,6 +302,91 @@ export function useMyLinkData() {
     [commitLinks, showToast]
   );
 
+  // ✏️ 링크 수정 핸들러 (users & user 양방향 수정 및 화면 즉시 반영)
+  const updateLink = useCallback(
+    async (
+      linkId: string,
+      updatedData: {
+        title: string;
+        url: string;
+        subtitle?: string;
+        badge?: string;
+        icon?: string;
+        highlight?: boolean;
+      }
+    ) => {
+      setIsSyncing(true);
+      try {
+        const title = updatedData.title.trim();
+        let url = updatedData.url.trim();
+        if (
+          !url.startsWith("http://") &&
+          !url.startsWith("https://") &&
+          !url.startsWith("mailto:")
+        ) {
+          url = `https://${url}`;
+        }
+
+        const patchData: Record<string, any> = {
+          title,
+          url,
+          updatedAt: serverTimestamp(),
+        };
+
+        if (updatedData.subtitle !== undefined) {
+          patchData.subtitle = updatedData.subtitle.trim() || "";
+        }
+        if (updatedData.badge !== undefined) {
+          patchData.badge = updatedData.badge.trim() || "";
+        }
+        if (updatedData.icon !== undefined) {
+          patchData.icon = updatedData.icon;
+        }
+        if (updatedData.highlight !== undefined) {
+          patchData.highlight = !!updatedData.highlight;
+        }
+
+        // 1. 낙관적 로컬 상태 즉각 반영
+        const nextMap = new Map(linksMapRef.current);
+        const existing = nextMap.get(linkId);
+        if (existing) {
+          const updatedItem: CustomLink = {
+            ...existing,
+            title,
+            url,
+            ...(updatedData.subtitle !== undefined && {
+              subtitle: updatedData.subtitle.trim() || undefined,
+            }),
+            ...(updatedData.badge !== undefined && {
+              badge: updatedData.badge.trim() || undefined,
+            }),
+            ...(updatedData.icon !== undefined && { icon: updatedData.icon }),
+            ...(updatedData.highlight !== undefined && {
+              highlight: !!updatedData.highlight,
+            }),
+          };
+          nextMap.set(linkId, updatedItem);
+          commitLinks(nextMap);
+        }
+
+        // 2. primary(users/anonymous/links) 및 fallback(user/anonymous/links) 동시 업데이트
+        await Promise.allSettled([
+          updateDoc(doc(db, ...PRIMARY_PATH, linkId), patchData),
+          updateDoc(doc(db, ...FALLBACK_PATH, linkId), patchData),
+        ]);
+
+        showToast("링크가 성공적으로 갱신되었습니다! ✏️", "success");
+      } catch (error: any) {
+        console.error("Firestore updateLink error:", error);
+        showToast("링크 수정에 실패했습니다. 다시 시도해 주세요.", "error");
+        throw error;
+      } finally {
+        setTimeout(() => setIsSyncing(false), 200);
+      }
+    },
+    [commitLinks, showToast]
+  );
+
   // 🗑️ 링크 삭제 핸들러 (화면 + users & user 양방향 삭제)
   const deleteLink = useCallback(
     async (linkId: string) => {
@@ -393,6 +478,7 @@ export function useMyLinkData() {
     toastType,
     showToast,
     addLink,
+    updateLink,
     deleteLink,
     refreshLinks,
     trackLinkClick,

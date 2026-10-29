@@ -7,12 +7,14 @@ import { ProfileHeader } from "@/components/ProfileHeader";
 import { SocialIconsBar } from "@/components/SocialIconsBar";
 import { LinkCard } from "@/components/LinkCard";
 import { AddLinkDialog } from "@/components/AddLinkDialog";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { WindowHeader, BottomActions } from "@/components/ShareUtility";
 import { Toast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Layers, Plus, Loader2, RotateCw } from "lucide-react";
+import { CustomLink } from "@/types/mylink";
 
 export default function MyLinkPage() {
   const {
@@ -24,6 +26,7 @@ export default function MyLinkPage() {
     toastMessage,
     toastType,
     addLink,
+    updateLink,
     deleteLink,
     refreshLinks,
     trackLinkClick,
@@ -31,6 +34,7 @@ export default function MyLinkPage() {
   } = useMyLinkData();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [targetDeleteLink, setTargetDeleteLink] = useState<CustomLink | null>(null);
 
   const handleShare = async () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -71,6 +75,22 @@ export default function MyLinkPage() {
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onAddLink={addLink}
+      />
+
+      {/* 🗑️ 링크 삭제 확인 다이얼로그 (모달) */}
+      <DeleteConfirmDialog
+        open={!!targetDeleteLink}
+        onOpenChange={(open) => {
+          if (!open) setTargetDeleteLink(null);
+        }}
+        linkTitle={targetDeleteLink?.title || ""}
+        isDeleting={targetDeleteLink ? deletingId === targetDeleteLink.id : false}
+        onConfirm={async () => {
+          if (targetDeleteLink) {
+            await deleteLink(targetDeleteLink.id);
+            setTargetDeleteLink(null);
+          }
+        }}
       />
 
       {/* 💻 NOL 스타일 메인 프로필 카드 (rounded-[24px] ~ [28px], 1px 테두리, 클린 룩) */}
@@ -175,7 +195,8 @@ export default function MyLinkPage() {
                   link={link}
                   isDeleting={deletingId === link.id}
                   onLinkClick={trackLinkClick}
-                  onDelete={deleteLink}
+                  onRequestDelete={(target) => setTargetDeleteLink(target)}
+                  onUpdate={updateLink}
                 />
               ))
             ) : (
