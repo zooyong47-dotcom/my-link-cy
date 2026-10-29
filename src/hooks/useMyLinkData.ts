@@ -55,6 +55,8 @@ function docToCustomLink(docSnap: QueryDocumentSnapshot<DocumentData>): CustomLi
     bgColor: data.bgColor || undefined,
     badgeColor: data.badgeColor || undefined,
     createdAt: data.createdAt || data.createdAT || undefined,
+    updateAt: data.updateAt || data.updatedAt || undefined,
+    updatedAt: data.updatedAt || data.updateAt || undefined,
   };
 }
 
@@ -330,6 +332,7 @@ export function useMyLinkData() {
         const patchData: Record<string, any> = {
           title,
           url,
+          updateAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
 
@@ -346,7 +349,8 @@ export function useMyLinkData() {
           patchData.highlight = !!updatedData.highlight;
         }
 
-        // 1. 낙관적 로컬 상태 즉각 반영
+        // 1. 낙관적 로컬 상태 즉각 반영 (updateAt/updatedAt 포함)
+        const now = Date.now();
         const nextMap = new Map(linksMapRef.current);
         const existing = nextMap.get(linkId);
         if (existing) {
@@ -354,6 +358,8 @@ export function useMyLinkData() {
             ...existing,
             title,
             url,
+            updateAt: now,
+            updatedAt: now,
             ...(updatedData.subtitle !== undefined && {
               subtitle: updatedData.subtitle.trim() || undefined,
             }),

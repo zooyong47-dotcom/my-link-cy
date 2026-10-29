@@ -20,6 +20,8 @@ export interface CustomLink {
   bgColor?: string;
   badgeColor?: string;
   createdAt?: number | any;
+  updateAt?: number | any;
+  updatedAt?: number | any;
 }
 
 export interface ThemeConfig {

@@ -178,7 +178,10 @@ export async function PATCH(request: NextRequest) {
     if (action === "click") {
       await updateDoc(docRef, { clicks: increment(1) });
     } else {
-      const sanitizedUpdates: Record<string, any> = {};
+      const sanitizedUpdates: Record<string, any> = {
+        updateAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
       for (const [key, val] of Object.entries(updates)) {
         if (val !== undefined) {
           sanitizedUpdates[key] = val;

@@ -145,6 +145,25 @@ export function LinkCard({
   const isTitleValid = !errors.title && currentTitle.trim().length >= 2;
   const isUrlValid = !errors.url && currentUrl.trim().length > 0;
 
+  // 수정 일시 포맷팅 헬퍼
+  const formatDateTime = (val: any) => {
+    if (!val) return null;
+    const time =
+      typeof val?.toMillis === "function"
+        ? val.toMillis()
+        : typeof val?.toDate === "function"
+        ? val.toDate().getTime()
+        : typeof val === "number"
+        ? val
+        : new Date(val).getTime();
+    if (!time || isNaN(time)) return null;
+    const d = new Date(time);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const formattedUpdateAt = formatDateTime(link.updateAt || link.updatedAt);
+
   // 🛠️ 1. 인라인 편집 UI 렌더링
   if (isEditing) {
     return (
@@ -155,9 +174,16 @@ export function LinkCard({
               <Pencil className="w-3.5 h-3.5" />
               링크 인라인 수정
             </span>
-            <span className="text-[11px] text-neutral-strong1">
-              파이어베이스 갱신
-            </span>
+            <div className="flex items-center gap-2 text-[11px]">
+              {formattedUpdateAt && (
+                <span className="text-neutral-medium font-mono hidden sm:inline">
+                  수정됨: {formattedUpdateAt}
+                </span>
+              )}
+              <span className="text-neutral-strong1">
+                파이어베이스 갱신
+              </span>
+            </div>
           </div>
 
           {/* 제목 입력 영역 */}
@@ -331,6 +357,11 @@ export function LinkCard({
                 {link.subtitle}
               </p>
             )}
+            {formattedUpdateAt && (
+              <p className="text-[10px] text-neutral-medium truncate mt-0.5 font-mono">
+                수정: {formattedUpdateAt}
+              </p>
+            )}
           </div>
         </div>
 
@@ -355,7 +386,11 @@ export function LinkCard({
                 setIsEditing(true);
               }}
               className="w-8 h-8 rounded-[10px] flex items-center justify-center text-neutral-strong1 bg-neutral-weak hover:text-primary-main hover:bg-primary-weak hover:border-primary-weak2 border border-neutral-weak2 shadow-2xs transition-all cursor-pointer"
-              title="링크 수정"
+              title={
+                formattedUpdateAt
+                  ? `링크 수정 (수정일: ${formattedUpdateAt})`
+                  : "링크 수정"
+              }
               aria-label="링크 수정"
             >
               <Pencil className="w-3.5 h-3.5 text-primary-main" />
