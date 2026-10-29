@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Next.js Dev Server",
+      "type": "shell",
+      "command": "npm.cmd run dev",
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": {
+        "owner": "nextjs",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*(compiling|Starting|Ready in).*",
+          "endsPattern": ".*(Ready in|Local:.*http://localhost:3000|Compiled).*"
+        }
+      },
+      "presentation": {
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "close": false
+      }
+    }
+  ]
+}
