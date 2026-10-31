@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { useAuth } from "@/hooks/useAuth";
 import { useMyLinkData } from "@/hooks/useMyLinkData";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { SocialIconsBar } from "@/components/SocialIconsBar";
@@ -9,14 +10,17 @@ import { LinkCard } from "@/components/LinkCard";
 import { AddLinkDialog } from "@/components/AddLinkDialog";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { WindowHeader, BottomActions } from "@/components/ShareUtility";
+import { LoggedOutGuide } from "@/components/LoggedOutGuide";
 import { Toast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Layers, Plus, Loader2, RotateCw } from "lucide-react";
+import { Layers, Plus, Loader2, RotateCw, Lock } from "lucide-react";
 import { CustomLink } from "@/types/mylink";
+import { GoogleIcon } from "@/components/icons";
 
 export default function MyLinkPage() {
+  const { user, isSigningIn, authError, signInWithGoogle, logout } = useAuth();
   const {
     profile,
     links,
@@ -25,16 +29,22 @@ export default function MyLinkPage() {
     deletingId,
     toastMessage,
     toastType,
+    showToast,
     addLink,
     updateLink,
     deleteLink,
     refreshLinks,
     trackLinkClick,
     copyToClipboard,
-  } = useMyLinkData();
+  } = useMyLinkData(user);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [targetDeleteLink, setTargetDeleteLink] = useState<CustomLink | null>(null);
+
+  // 🔐 로그인 실패 시(사용자 취소 제외) 토스트로 원인 안내
+  useEffect(() => {
+    if (authError) showToast(authError, "error");
+  }, [authError, showToast]);
 
   const handleShare = async () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -60,6 +70,14 @@ export default function MyLinkPage() {
   const handleCopyProfileUrl = () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
     copyToClipboard(url, "전체 프로필 링크");
+  };
+
+  const handleAddLinkClick = () => {
+    if (!user) {
+      showToast("Google 계정으로 로그인 후 새 링크를 추가할 수 있습니다.", "error");
+      return;
+    }
+    setIsAddDialogOpen(true);
   };
 
   // 활성화된 링크만 필터링
@@ -95,8 +113,14 @@ export default function MyLinkPage() {
 
       {/* 💻 NOL 스타일 메인 프로필 카드 (rounded-[24px] ~ [28px], 1px 테두리, 클린 룩) */}
       <Card className="w-full max-w-lg bg-static-white border border-neutral-weak2 rounded-[24px] sm:rounded-[28px] shadow-sm overflow-hidden">
-        {/* 상단 윈도우 헤더 바 */}
-        <WindowHeader onShare={handleShare} />
+        {/* 🌟 상단 윈도우 헤더 바 (Google 소셜 로그인 및 사용자명/로그아웃 탑재) */}
+        <WindowHeader
+          user={user}
+          onLogin={signInWithGoogle}
+          onLogout={logout}
+          isLoggingIn={isSigningIn}
+          onShare={handleShare}
+        />
 
         {/* 커버 배너 영역: NOL의 차가운 톤 그라디언트 및 이미지 */}
         <div className="relative h-32 sm:h-40 w-full border-b border-neutral-weak2 bg-gradient-to-r from-[#3549FF] via-[#4154FF] to-[#6181EA] overflow-hidden">
@@ -121,11 +145,20 @@ export default function MyLinkPage() {
             <ProfileHeader
               profile={profile}
               onCopyEmail={handleCopyEmail}
+              isLoggedIn={!!user}
             />
           </div>
 
           {/* 🌐 소셜 아이콘 바 */}
           <SocialIconsBar socials={profile.socials} />
+
+          {/* 📍 로그아웃 상태: 로그인 이후 사용할 수 있도록 설명 문구 및 로그인 유도 UI */}
+          {!user && (
+            <LoggedOutGuide
+              onLogin={signInWithGoogle}
+              isLoggingIn={isSigningIn}
+            />
+          )}
 
           {/* 🔗 링크 목록 섹션 헤더 (NOL 타이포그래피 & 뱃지 + 동기화 상태 + 추가 버튼) */}
           <div className="mt-7 mb-3.5 border-b border-neutral-weak1 pb-2.5">
@@ -133,11 +166,13 @@ export default function MyLinkPage() {
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-primary-main" />
                 <h2 className="font-bold text-sm tracking-tight text-neutral-main">
-                  주요 링크
+                  {user ? "내 주요 링크" : "주요 링크"}
                 </h2>
-                <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4">
-                  {enabledLinks.length}
-                </Badge>
+                {user && (
+                  <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4">
+                    {enabledLinks.length}
+                  </Badge>
+                )}
 
                 {/* 🔄 동기화 / 갱신 중 상태 표시 뱃지 */}
                 {isSyncing && (
@@ -150,22 +185,24 @@ export default function MyLinkPage() {
 
               <div className="flex items-center gap-1.5">
                 {/* 🔄 수동 새로고침 버튼 */}
-                <button
-                  type="button"
-                  onClick={() => refreshLinks()}
-                  disabled={isSyncing}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-neutral-strong1 hover:text-primary-main hover:bg-neutral-weak2/60 transition-all cursor-pointer disabled:opacity-50"
-                  title="링크 목록 새로고침"
-                  aria-label="링크 목록 새로고침"
-                >
-                  <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary-main" : ""}`} />
-                </button>
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() => refreshLinks()}
+                    disabled={isSyncing}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-neutral-strong1 hover:text-primary-main hover:bg-neutral-weak2/60 transition-all cursor-pointer disabled:opacity-50"
+                    title="링크 목록 새로고침"
+                    aria-label="링크 목록 새로고침"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary-main" : ""}`} />
+                  </button>
+                )}
 
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => setIsAddDialogOpen(true)}
-                  className="h-7 text-xs px-2.5 rounded-full font-bold hover:bg-primary-weak1 transition-all"
+                  onClick={handleAddLinkClick}
+                  className="h-7 text-xs px-2.5 rounded-full font-bold hover:bg-primary-weak1 transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 mr-0.5" />
                   새 링크 추가
@@ -181,9 +218,36 @@ export default function MyLinkPage() {
             )}
           </div>
 
-          {/* 🔗 링크 목록 카드 렌더링 */}
+          {/* 🔗 링크 목록 카드 렌더링 (로그인 vs 비로그인) */}
           <div className="space-y-2.5">
-            {!isLoaded ? (
+            {!user ? (
+              /* 로그아웃 상태 안내 가이드 박스 */
+              <div className="text-center py-8 px-4 border border-dashed border-neutral-weak3 rounded-[18px] bg-neutral-weak/40 space-y-3">
+                <div className="w-10 h-10 rounded-full bg-neutral-weak2 mx-auto flex items-center justify-center text-neutral-medium">
+                  <Lock className="w-5 h-5 text-neutral-strong1" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-sm text-neutral-main">
+                    링크 관리 기능은 로그인 후 이용하실 수 있습니다
+                  </p>
+                  <p className="text-xs text-neutral-medium leading-relaxed max-w-sm mx-auto">
+                    Google 계정으로 로그인하면 나만의 개인화된 Firestore 저장소(
+                    <span className="font-mono text-primary-main">users/&#123;uid&#125;/links</span>
+                    )에 링크를 생성하고 실시간으로 관리할 수 있습니다.
+                  </p>
+                </div>
+                <Button
+                  onClick={signInWithGoogle}
+                  disabled={isSigningIn}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full text-xs font-bold gap-1.5 border-neutral-weak2 hover:border-primary-weak2 text-neutral-main hover:text-primary-main bg-static-white shadow-2xs cursor-pointer"
+                >
+                  <GoogleIcon className="w-3.5 h-3.5" />
+                  <span>Google로 로그인</span>
+                </Button>
+              </div>
+            ) : !isLoaded ? (
               <div className="space-y-2.5 animate-pulse">
                 <div className="h-16 rounded-[18px] bg-neutral-weak2/60" />
                 <div className="h-16 rounded-[18px] bg-neutral-weak2/60" />
@@ -200,15 +264,18 @@ export default function MyLinkPage() {
                 />
               ))
             ) : (
-              <div className="text-center py-8 text-neutral-medium font-medium text-sm border border-dashed border-neutral-weak2 rounded-[16px] bg-neutral-weak/30">
-                등록된 활성 링크가 없습니다.
+              <div className="text-center py-8 text-neutral-medium font-medium text-sm border border-dashed border-neutral-weak2 rounded-[16px] bg-neutral-weak/30 space-y-1">
+                <div>등록된 활성 링크가 없습니다.</div>
+                <div className="text-xs text-neutral-strong1">
+                  아래 &lsquo;새 링크 카드 추가하기&rsquo; 버튼을 눌러 첫 번째 링크를 등록해 보세요!
+                </div>
               </div>
             )}
 
             {/* 링크 추가 바로가기 점선 버튼 */}
             <button
               type="button"
-              onClick={() => setIsAddDialogOpen(true)}
+              onClick={handleAddLinkClick}
               className="w-full py-3 px-4 rounded-[16px] border border-dashed border-neutral-weak3 hover:border-primary-main text-neutral-strong1 hover:text-primary-main bg-neutral-weak/40 hover:bg-primary-weak/40 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold cursor-pointer group"
             >
               <div className="w-6 h-6 rounded-full bg-neutral-weak2 group-hover:bg-primary-weak1 flex items-center justify-center transition-colors">
@@ -221,7 +288,7 @@ export default function MyLinkPage() {
           {/* 📬 하단 액션 버튼 */}
           <BottomActions
             onCopyAll={handleCopyProfileUrl}
-            email="chanyong.dev@gmail.com"
+            email={profile.email}
           />
 
           {/* ⚡ 푸터 브랜딩 */}

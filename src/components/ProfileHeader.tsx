@@ -10,9 +10,12 @@ import { MapPin, Mail, Sparkles, CheckCircle2 } from "lucide-react";
 interface ProfileHeaderProps {
   profile: MyLinkProfile;
   onCopyEmail?: (email: string) => void;
+  isLoggedIn?: boolean;
 }
 
-export function ProfileHeader({ profile, onCopyEmail }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, onCopyEmail, isLoggedIn = false }: ProfileHeaderProps) {
+  const emailToUse = profile.email || "user@example.com";
+
   return (
     <div className="flex flex-col items-center text-center">
       {/* 아바타: NOL의 둥근 모서리 (rounded-[24px]) 및 1px 소프트 테두리 */}
@@ -20,10 +23,11 @@ export function ProfileHeader({ profile, onCopyEmail }: ProfileHeaderProps) {
         <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[24px] border border-neutral-weak2 bg-neutral-weak p-0.5 shadow-sm overflow-hidden transition-transform duration-200 group-hover:scale-105">
           <Image
             src={profile.avatarUrl || "/avatar.svg"}
-            alt={profile.displayName}
+            alt={profile.displayName || "프로필"}
             width={112}
             height={112}
             priority
+            unoptimized
             className="w-full h-full object-cover rounded-[22px]"
           />
         </div>
@@ -48,9 +52,9 @@ export function ProfileHeader({ profile, onCopyEmail }: ProfileHeaderProps) {
               {profile.badge}
             </Badge>
           )}
-          <Badge variant="neutral" className="text-xs">
-            <CheckCircle2 className="w-3 h-3 mr-1 text-primary-main" />
-            AVAILABLE FOR HIRE
+          <Badge variant={isLoggedIn ? "neutral" : "outline"} className="text-xs">
+            <CheckCircle2 className={`w-3 h-3 mr-1 ${isLoggedIn ? "text-primary-main" : "text-neutral-medium"}`} />
+            {isLoggedIn ? "VERIFIED GOOGLE ACCOUNT" : "GUEST MODE"}
           </Badge>
         </div>
       </div>
@@ -66,15 +70,16 @@ export function ProfileHeader({ profile, onCopyEmail }: ProfileHeaderProps) {
           <MapPin className="w-3.5 h-3.5 text-neutral-medium" /> Seoul, KR
         </span>
 
-        {onCopyEmail && (
+        {profile.email && onCopyEmail && (
           <Button
-            onClick={() => onCopyEmail("chanyong.dev@gmail.com")}
+            onClick={() => onCopyEmail(emailToUse)}
             variant="outline"
             size="sm"
-            className="rounded-full text-xs font-medium h-7 px-3 text-neutral-strong1 hover:text-neutral-main"
+            className="rounded-full text-xs font-medium h-7 px-3 text-neutral-strong1 hover:text-neutral-main cursor-pointer"
             title="이메일 주소 복사"
           >
-            <Mail className="w-3.5 h-3.5 text-neutral-medium mr-1" /> chanyong.dev@gmail.com
+            <Mail className="w-3.5 h-3.5 text-neutral-medium mr-1" />
+            <span className="max-w-[150px] sm:max-w-none truncate">{emailToUse}</span>
           </Button>
         )}
       </div>

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { MyLinkProfile, CustomLink } from "@/types/mylink";
 import { MOCK_PROFILE } from "@/data/mockData";
 import { db } from "@/lib/firebase";
+import { getDisplayName } from "@/lib/utils";
+import { User } from "firebase/auth";
 import {
   collection,
   doc,
@@ -19,13 +21,6 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
-
-const PROFILE_STORAGE_KEY = "mylink_profile";
-
-// Firestore 기본 경로: users/anonymous/links
-const PRIMARY_PATH = ["users", "anonymous", "links"] as const;
-// Firestore 호환 경로: user/anonymous/links (콘솔에서 단수/복수 혼용 접근 시 완벽 동기화 보장)
-const FALLBACK_PATH = ["user", "anonymous", "links"] as const;
 
 function parseTimestamp(val: any): number {
   if (!val) return 0;
@@ -60,8 +55,17 @@ function docToCustomLink(docSnap: QueryDocumentSnapshot<DocumentData>): CustomLi
   };
 }
 
-export function useMyLinkData() {
-  const [profile, setProfile] = useState<MyLinkProfile>(MOCK_PROFILE);
+export function useMyLinkData(user: User | null) {
+  const [profile, setProfile] = useState<MyLinkProfile>(() => {
+    return {
+      ...MOCK_PROFILE,
+      displayName: "MyLink 허브",
+      username: "mylink",
+      bio: "Google 로그인 후 나만의 멀티링크를 간편하게 관리하고 실시간으로 동기화하세요 🚀",
+      email: undefined,
+    };
+  });
+
   const [links, setLinks] = useState<CustomLink[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -77,11 +81,11 @@ export function useMyLinkData() {
     setToastType(type);
     const timer = setTimeout(() => {
       setToastMessage(null);
-    }, 2400);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
-  // 🔄 최신 링크 목록을 상태로 반영하고 최신순 정렬하는 헬퍼
+  // 최신 링크 목록을 상태로 반영하고 최신순 정렬하는 헬퍼
   const commitLinks = useCallback((newMap: Map<string, CustomLink>) => {
     linksMapRef.current = newMap;
     const sorted = Array.from(newMap.values()).sort((a, b) => {
@@ -93,146 +97,112 @@ export function useMyLinkData() {
     setIsLoaded(true);
   }, []);
 
-  // 🔄 수동 새로고침 / 최신 데이터 강제 동기화 핸들러
-  const refreshLinks = useCallback(async (silent: boolean = false) => {
-    if (!silent) setIsSyncing(true);
-    try {
-      // 1. primary 경로(users/anonymous/links) 조회
-      const primaryCol = collection(db, ...PRIMARY_PATH);
-      const primaryQuery = query(primaryCol, orderBy("createdAt", "desc"));
-      let snapshot = await getDocs(primaryQuery).catch(() => getDocs(primaryCol));
-
-      const newMap = new Map<string, CustomLink>();
-      snapshot.docs.forEach((d) => {
-        newMap.set(d.id, docToCustomLink(d));
-      });
-
-      // 2. 만약 users에 아무것도 없으면 혹시 모를 user 경로 확인
-      if (newMap.size === 0) {
-        const fallbackCol = collection(db, ...FALLBACK_PATH);
-        const fallbackSnap = await getDocs(fallbackCol).catch(() => null);
-        if (fallbackSnap && !fallbackSnap.empty) {
-          fallbackSnap.docs.forEach((d) => {
-            newMap.set(d.id, docToCustomLink(d));
-          });
-        }
-      }
-
-      commitLinks(newMap);
-      if (!silent) {
-        showToast("최신 링크 목록으로 동기화되었습니다. ⚡", "success");
-      }
-    } catch (e) {
-      console.error("refreshLinks error:", e);
-      if (!silent) {
-        showToast("동기화 중 오류가 발생했습니다.", "error");
-      }
-    } finally {
-      if (!silent) {
-        setTimeout(() => setIsSyncing(false), 300);
-      }
-    }
-  }, [commitLinks, showToast]);
-
-  // 🔄 Firestore 실시간 리스너 연결 (users & user 양방향 감지 및 외부 삭제 즉시 반영)
+  // 🔄 유저 상태 변경 시 프로필 및 Firestore 동기화 경로 설정
   useEffect(() => {
-    // 1. 프로필 로드 (LocalStorage 캐시 활용)
-    try {
-      const savedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (savedProfile) {
-        setProfile(JSON.parse(savedProfile));
-      } else {
-        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(MOCK_PROFILE));
-      }
-    } catch (e) {
-      console.warn("Profile storage access failed:", e);
+    if (!user) {
+      // 로그아웃 상태: 링크 비우고 기본 게스트 프로필로 전환
+      linksMapRef.current.clear();
+      setLinks([]);
+      setIsLoaded(true);
+      setIsSyncing(false);
+      setProfile({
+        ...MOCK_PROFILE,
+        displayName: "MyLink",
+        username: "guest",
+        bio: "Google 소셜 로그인 후 Firestore(users/{user.uid}/links) 개인 경로에 나만의 링크를 생성하고 실시간으로 관리하세요 🚀",
+        avatarUrl: "/avatar.svg",
+        badge: "GOOGLE LOGIN",
+        email: undefined,
+      });
+      return;
     }
+
+    // 로그인 상태: 유저 정보로 개인화
+    const userDisplayName = getDisplayName(user);
+    const userHandle = userDisplayName;
+    setProfile((prev) => ({
+      ...prev,
+      displayName: userDisplayName,
+      username: userHandle,
+      avatarUrl: user.photoURL || "/avatar.svg",
+      email: user.email || undefined,
+      badge: "GOOGLE VERIFIED",
+      bio: `${userDisplayName}님의 실시간 맞춤 링크 허브입니다 ⚡`,
+    }));
 
     setIsSyncing(true);
+    setIsLoaded(false);
 
-    // 2. 主 컬렉션 리스너: users/anonymous/links
-    const primaryCol = collection(db, ...PRIMARY_PATH);
-    const primaryQuery = query(primaryCol, orderBy("createdAt", "desc"));
+    // 🎯 Firestore 개인화 경로: users/{user.uid}/links
+    const userLinksCol = collection(db, "users", user.uid, "links");
+    const userQuery = query(userLinksCol, orderBy("createdAt", "desc"));
 
-    const unsubPrimary = onSnapshot(
-      primaryQuery,
+    const unsub = onSnapshot(
+      userQuery,
       (snapshot) => {
-        setIsSyncing(true);
         const nextMap = new Map<string, CustomLink>();
-
         snapshot.docs.forEach((docSnap) => {
           nextMap.set(docSnap.id, docToCustomLink(docSnap));
         });
-
-        // Firebase 데이터베이스에서 삭제된 문서 감지 시
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "removed") {
-            const removedId = change.doc.id;
-            nextMap.delete(removedId);
-            // fallback 경로(user/anonymous/links)에도 잔여 문서가 있다면 동기화 정리
-            deleteDoc(doc(db, ...FALLBACK_PATH, removedId)).catch(() => {});
-          }
-        });
-
         commitLinks(nextMap);
-        setTimeout(() => setIsSyncing(false), 300);
+        setIsSyncing(false);
       },
       (error) => {
-        console.warn("Primary ordered listener failed, using plain listener:", error);
-        onSnapshot(primaryCol, (snap) => {
+        console.warn("User links ordered listener fallback to plain listener:", error);
+        // 복합 인덱스 미생성 시 일반 getDocs/리스너 대체
+        const fallbackUnsub = onSnapshot(userLinksCol, (snap) => {
           const nextMap = new Map<string, CustomLink>();
           snap.docs.forEach((d) => nextMap.set(d.id, docToCustomLink(d)));
           commitLinks(nextMap);
           setIsSyncing(false);
         });
+        return fallbackUnsub;
       }
     );
 
-    // 3. 補助 컬렉션 리스너: user/anonymous/links (사용자가 콘솔에서 단수형 경로에서 삭제한 경우도 즉시 감지)
-    const fallbackCol = collection(db, ...FALLBACK_PATH);
-    const unsubFallback = onSnapshot(
-      fallbackCol,
-      (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "removed") {
-            const removedId = change.doc.id;
-            // 로컬 화면에서 즉시 삭제
-            setLinks((prev) => prev.filter((item) => item.id !== removedId));
-            linksMapRef.current.delete(removedId);
-            // primary 컬렉션(users/anonymous/links)에서도 함께 삭제하여 일치 유지
-            deleteDoc(doc(db, ...PRIMARY_PATH, removedId)).catch(() => {});
-          }
+    return () => {
+      unsub();
+    };
+  }, [user, commitLinks]);
+
+  // 🔄 수동 새로고침 / 최신 데이터 강제 동기화
+  const refreshLinks = useCallback(
+    async (silent: boolean = false) => {
+      if (!user) {
+        showToast("로그인 후 링크를 새로고침할 수 있습니다.", "error");
+        return;
+      }
+
+      if (!silent) setIsSyncing(true);
+      try {
+        const userLinksCol = collection(db, "users", user.uid, "links");
+        const userQuery = query(userLinksCol, orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(userQuery).catch(() => getDocs(userLinksCol));
+
+        const newMap = new Map<string, CustomLink>();
+        snapshot.docs.forEach((d) => {
+          newMap.set(d.id, docToCustomLink(d));
         });
-      },
-      (error) => {
-        console.warn("Fallback path listener note:", error);
+
+        commitLinks(newMap);
+        if (!silent) {
+          showToast("최신 링크 목록으로 동기화되었습니다. ⚡", "success");
+        }
+      } catch (e) {
+        console.error("refreshLinks error:", e);
+        if (!silent) {
+          showToast("동기화 중 오류가 발생했습니다.", "error");
+        }
+      } finally {
+        if (!silent) {
+          setTimeout(() => setIsSyncing(false), 300);
+        }
       }
-    );
+    },
+    [user, commitLinks, showToast]
+  );
 
-    return () => {
-      unsubPrimary();
-      unsubFallback();
-    };
-  }, [commitLinks]);
-
-  // 👁️ 브라우저 탭 복귀 시(Firebase 콘솔에서 삭제 후 로컬 탭으로 전환 시) 즉시 동기화
-  useEffect(() => {
-    const handleFocusOrVisibility = () => {
-      if (document.visibilityState === "visible") {
-        refreshLinks(true);
-      }
-    };
-
-    window.addEventListener("focus", handleFocusOrVisibility);
-    document.addEventListener("visibilitychange", handleFocusOrVisibility);
-
-    return () => {
-      window.removeEventListener("focus", handleFocusOrVisibility);
-      document.removeEventListener("visibilitychange", handleFocusOrVisibility);
-    };
-  }, [refreshLinks]);
-
-  // ➕ 새 링크 추가 핸들러 (users & user 양방향 저장 및 화면 즉시 반영)
+  // ➕ 새 링크 추가 핸들러: users/{user.uid}/links에 저장
   const addLink = useCallback(
     async (newLinkData: {
       title: string;
@@ -242,12 +212,23 @@ export function useMyLinkData() {
       icon?: string;
       highlight?: boolean;
     }) => {
+      if (!user) {
+        showToast("링크를 추가하려면 먼저 Google 계정으로 로그인해 주세요.", "error");
+        throw new Error("로그인이 필요합니다.");
+      }
+
       setIsSyncing(true);
       try {
         const title = newLinkData.title.trim();
-        const url = newLinkData.url.trim();
+        let url = newLinkData.url.trim();
+        if (
+          !url.startsWith("http://") &&
+          !url.startsWith("https://") &&
+          !url.startsWith("mailto:")
+        ) {
+          url = `https://${url}`;
+        }
 
-        // Firestore 저장 데이터 구성
         const docData: Record<string, any> = {
           title,
           url,
@@ -256,7 +237,7 @@ export function useMyLinkData() {
           enabled: true,
           clicks: 0,
           createdAt: serverTimestamp(),
-          createdAT: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         };
 
         if (newLinkData.subtitle && newLinkData.subtitle.trim()) {
@@ -266,13 +247,10 @@ export function useMyLinkData() {
           docData.badge = newLinkData.badge.trim();
         }
 
-        // 1. primary 경로(users/anonymous/links)에 문서 생성
-        const primaryColRef = collection(db, ...PRIMARY_PATH);
-        const newDocRef = doc(primaryColRef);
+        // Firestore 개인화 경로: users/{user.uid}/links
+        const userLinksColRef = collection(db, "users", user.uid, "links");
+        const newDocRef = doc(userLinksColRef);
         await setDoc(newDocRef, docData);
-
-        // 2. 콘솔 어디서 보더라도 보이도록 fallback 경로(user/anonymous/links)에도 동일 ID로 미러링
-        setDoc(doc(db, ...FALLBACK_PATH, newDocRef.id), docData).catch(() => {});
 
         const createdLink: CustomLink = {
           id: newDocRef.id,
@@ -301,10 +279,10 @@ export function useMyLinkData() {
         throw error;
       }
     },
-    [commitLinks, showToast]
+    [user, commitLinks, showToast]
   );
 
-  // ✏️ 링크 수정 핸들러 (users & user 양방향 수정 및 화면 즉시 반영)
+  // ✏️ 링크 수정 핸들러: users/{user.uid}/links/{linkId} 수정
   const updateLink = useCallback(
     async (
       linkId: string,
@@ -317,6 +295,11 @@ export function useMyLinkData() {
         highlight?: boolean;
       }
     ) => {
+      if (!user) {
+        showToast("수정 권한이 없습니다. 로그인해 주세요.", "error");
+        return;
+      }
+
       setIsSyncing(true);
       try {
         const title = updatedData.title.trim();
@@ -332,7 +315,6 @@ export function useMyLinkData() {
         const patchData: Record<string, any> = {
           title,
           url,
-          updateAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
 
@@ -349,7 +331,7 @@ export function useMyLinkData() {
           patchData.highlight = !!updatedData.highlight;
         }
 
-        // 1. 낙관적 로컬 상태 즉각 반영 (updateAt/updatedAt 포함)
+        // 낙관적 로컬 상태 즉각 반영
         const now = Date.now();
         const nextMap = new Map(linksMapRef.current);
         const existing = nextMap.get(linkId);
@@ -358,7 +340,6 @@ export function useMyLinkData() {
             ...existing,
             title,
             url,
-            updateAt: now,
             updatedAt: now,
             ...(updatedData.subtitle !== undefined && {
               subtitle: updatedData.subtitle.trim() || undefined,
@@ -375,11 +356,8 @@ export function useMyLinkData() {
           commitLinks(nextMap);
         }
 
-        // 2. primary(users/anonymous/links) 및 fallback(user/anonymous/links) 동시 업데이트
-        await Promise.allSettled([
-          updateDoc(doc(db, ...PRIMARY_PATH, linkId), patchData),
-          updateDoc(doc(db, ...FALLBACK_PATH, linkId), patchData),
-        ]);
+        const docRef = doc(db, "users", user.uid, "links", linkId);
+        await updateDoc(docRef, patchData);
 
         showToast("링크가 성공적으로 갱신되었습니다! ✏️", "success");
       } catch (error: any) {
@@ -390,25 +368,28 @@ export function useMyLinkData() {
         setTimeout(() => setIsSyncing(false), 200);
       }
     },
-    [commitLinks, showToast]
+    [user, commitLinks, showToast]
   );
 
-  // 🗑️ 링크 삭제 핸들러 (화면 + users & user 양방향 삭제)
+  // 🗑️ 링크 삭제 핸들러: users/{user.uid}/links/{linkId} 삭제
   const deleteLink = useCallback(
     async (linkId: string) => {
+      if (!user) {
+        showToast("삭제 권한이 없습니다. 로그인해 주세요.", "error");
+        return;
+      }
+
       setDeletingId(linkId);
       setIsSyncing(true);
 
-      // 낙관적 UI 업데이트: 로컬 상태에서 즉각 제거
+      // 낙관적 UI 업데이트
       const nextMap = new Map(linksMapRef.current);
       nextMap.delete(linkId);
       commitLinks(nextMap);
 
       try {
-        await Promise.allSettled([
-          deleteDoc(doc(db, ...PRIMARY_PATH, linkId)),
-          deleteDoc(doc(db, ...FALLBACK_PATH, linkId)),
-        ]);
+        const docRef = doc(db, "users", user.uid, "links", linkId);
+        await deleteDoc(docRef);
         showToast("링크가 삭제되었습니다. 🗑️", "success");
       } catch (e) {
         console.error("Firestore deleteDoc error:", e);
@@ -418,34 +399,37 @@ export function useMyLinkData() {
         setTimeout(() => setIsSyncing(false), 200);
       }
     },
-    [commitLinks, showToast]
+    [user, commitLinks, showToast]
   );
 
   // 📈 링크 클릭수 증가 핸들러
-  const trackLinkClick = useCallback((linkId: string) => {
-    setLinks((prevLinks) => {
-      return prevLinks.map((link) => {
-        if (link.id === linkId) {
-          return {
-            ...link,
-            clicks: (link.clicks || 0) + 1,
-          };
-        }
-        return link;
-      });
-    });
+  const trackLinkClick = useCallback(
+    (linkId: string) => {
+      if (!user) return;
 
-    try {
-      updateDoc(doc(db, ...PRIMARY_PATH, linkId), {
-        clicks: increment(1),
-      }).catch(() => {});
-      updateDoc(doc(db, ...FALLBACK_PATH, linkId), {
-        clicks: increment(1),
-      }).catch(() => {});
-    } catch (e) {
-      console.warn("Firestore click increment error:", e);
-    }
-  }, []);
+      setLinks((prevLinks) => {
+        return prevLinks.map((link) => {
+          if (link.id === linkId) {
+            return {
+              ...link,
+              clicks: (link.clicks || 0) + 1,
+            };
+          }
+          return link;
+        });
+      });
+
+      try {
+        const docRef = doc(db, "users", user.uid, "links", linkId);
+        updateDoc(docRef, {
+          clicks: increment(1),
+        }).catch(() => {});
+      } catch (e) {
+        console.warn("Firestore click increment error:", e);
+      }
+    },
+    [user]
+  );
 
   // 📋 클립보드 복사 유틸리티
   const copyToClipboard = useCallback(
