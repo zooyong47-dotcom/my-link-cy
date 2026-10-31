@@ -58,19 +58,19 @@ export function SocialIconsBar({ socials }: SocialIconsBarProps) {
       {activeSocials.map((social) => (
         <Button
           key={social.id}
-          asChild
           variant="outline"
           size="iconSm"
           title={social.platform}
           className="w-10 h-10 rounded-[12px] border-neutral-weak2 bg-static-white text-neutral-main hover:bg-primary-weak hover:text-primary-main hover:border-primary-weak2 transition-all"
+          render={
+            <a
+              href={social.url}
+              target={social.url.startsWith("http") ? "_blank" : "_self"}
+              rel="noopener noreferrer"
+            />
+          }
         >
-          <a
-            href={social.url}
-            target={social.url.startsWith("http") ? "_blank" : "_self"}
-            rel="noopener noreferrer"
-          >
-            {renderIcon(social.platform)}
-          </a>
+          {renderIcon(social.platform)}
         </Button>
       ))}
     </div>
