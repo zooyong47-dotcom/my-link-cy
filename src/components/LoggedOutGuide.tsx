@@ -22,7 +22,7 @@ export function LoggedOutGuide({ onLogin, isLoggingIn }: LoggedOutGuideProps) {
       </h3>
 
       <p className="text-xs sm:text-sm text-neutral-strong1 leading-relaxed max-w-sm mx-auto mt-1.5 mb-5">
-        Google 계정으로 로그인하면 개인 전용 경로에 링크를 추가·수정하고 실시간 클릭 수를 확인할 수 있습니다.
+        Google 계정으로 로그인하면 개인 전용 경로에 링크를 추가·수정하고 클릭 수를 확인할 수 있습니다.
       </p>
 
       <Button

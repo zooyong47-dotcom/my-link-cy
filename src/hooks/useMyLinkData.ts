@@ -1,557 +1,378 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { MyLinkProfile, CustomLink } from "@/types/mylink";
-import { MOCK_PROFILE } from "@/data/mockData";
-import { db } from "@/lib/firebase";
-import { getDisplayName } from "@/lib/utils";
+import { useState, useCallback, useRef } from "react";
 import { User } from "firebase/auth";
 import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-  increment,
-  DocumentData,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { CustomLink, MyLinkProfile } from "@/types/mylink";
+import { normalizeUsername } from "@/lib/validations/profile";
 import {
-  normalizeUsername,
-  usernameFieldSchema,
-  updateProfileSchema,
-} from "@/lib/validations/profile";
+  myLinkKeys,
+  getGuestProfile,
+  getInitialUserProfile,
+  fetchUserProfile,
+  fetchUserLinks,
+  checkUsernameInFirestore,
+  createUserLink,
+  patchUserLink,
+  removeUserLink,
+  incrementUserLinkClick,
+  saveUserProfile,
+  CreateLinkPayload,
+  UpdateLinkPayload,
+  UpdateProfilePayload,
+  UsernameCheckResult,
+} from "@/lib/queries/mylink";
 
-export interface UsernameCheckResult {
-  available: boolean;
-  isCurrentMine?: boolean;
-  message: string;
-}
-
-function parseTimestamp(val: any): number {
-  if (!val) return 0;
-  if (typeof val.toMillis === "function") return val.toMillis();
-  if (typeof val.toDate === "function") return val.toDate().getTime();
-  if (typeof val.seconds === "number") return val.seconds * 1000;
-  if (typeof val === "number") return val;
-  if (val instanceof Date) return val.getTime();
-  const parsed = new Date(val).getTime();
-  return isNaN(parsed) ? 0 : parsed;
-}
-
-function docToCustomLink(docSnap: QueryDocumentSnapshot<DocumentData>): CustomLink {
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    title: data.title || "제목 없음",
-    url: data.url || "",
-    subtitle: data.subtitle || undefined,
-    description: data.description || undefined,
-    badge: data.badge || undefined,
-    category: data.category || undefined,
-    enabled: data.enabled !== undefined ? data.enabled : true,
-    highlight: !!data.highlight,
-    clicks: data.clicks || 0,
-    icon: data.icon || "globe",
-    bgColor: data.bgColor || undefined,
-    badgeColor: data.badgeColor || undefined,
-    createdAt: data.createdAt || data.createdAT || undefined,
-    updateAt: data.updateAt || data.updatedAt || undefined,
-    updatedAt: data.updatedAt || data.updateAt || undefined,
-  };
-}
+export type { UsernameCheckResult };
 
 export function useMyLinkData(user: User | null) {
-  const [profile, setProfile] = useState<MyLinkProfile>(() => {
-    return {
-      ...MOCK_PROFILE,
-      displayName: "MyLink",
-      username: "guest",
-      bio: "나만의 링크를 한곳에 모아 간편하게 공유하는 멀티링크 허브",
-      email: undefined,
-    };
-  });
+  const queryClient = useQueryClient();
+  const uid = user?.uid ?? "";
 
-  const [links, setLinks] = useState<CustomLink[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<"success" | "error">("success");
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 내부적으로 현재 관리 중인 링크 목록 ID Set 추적
-  const linksMapRef = useRef<Map<string, CustomLink>>(new Map());
-  const userDocRefData = useRef<DocumentData | null>(null);
-  const profileSubDocRefData = useRef<DocumentData | null>(null);
+  const showToast = useCallback(
+    (msg: string, type: "success" | "error" = "success") => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setToastMessage(msg);
+      setToastType(type);
+      toastTimerRef.current = setTimeout(() => {
+        setToastMessage(null);
+      }, 2500);
+    },
+    []
+  );
 
-  const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
-    setToastMessage(msg);
-    setToastType(type);
-    const timer = setTimeout(() => {
-      setToastMessage(null);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
+  // 1) 프로필 단발 조회 (useQuery)
+  const profileQuery = useQuery({
+    queryKey: myLinkKeys.profile(uid),
+    queryFn: () => fetchUserProfile(user!),
+    enabled: !!user,
+  });
 
-  // 최신 링크 목록을 상태로 반영하고 최신순 정렬하는 헬퍼
-  const commitLinks = useCallback((newMap: Map<string, CustomLink>) => {
-    linksMapRef.current = newMap;
-    const sorted = Array.from(newMap.values()).sort((a, b) => {
-      const tA = parseTimestamp(a.createdAt);
-      const tB = parseTimestamp(b.createdAt);
-      return tB - tA;
-    });
-    setLinks(sorted);
-    setIsLoaded(true);
-  }, []);
+  // 2) 링크 목록 단발 조회 (useQuery)
+  const linksQuery = useQuery({
+    queryKey: myLinkKeys.links(uid),
+    queryFn: () => fetchUserLinks(uid),
+    enabled: !!user,
+  });
 
-  // 🔄 유저 상태 변경 시 프로필 및 Firestore 동기화 경로 설정
-  useEffect(() => {
-    if (!user) {
-      // 로그아웃 상태: 링크 비우고 기본 게스트 프로필로 전환
-      linksMapRef.current.clear();
-      userDocRefData.current = null;
-      profileSubDocRefData.current = null;
-      setLinks([]);
-      setIsLoaded(true);
-      setIsProfileLoaded(true);
-      setIsSyncing(false);
-      setProfile({
-        ...MOCK_PROFILE,
-        displayName: "MyLink",
-        username: "guest",
-        bio: "나만의 링크를 한곳에 모아 간편하게 공유하는 멀티링크 허브",
-        avatarUrl: "/avatar.svg",
-        badge: undefined,
-        email: undefined,
-      });
-      return;
-    }
+  const profile: MyLinkProfile = !user
+    ? getGuestProfile()
+    : profileQuery.data ?? getInitialUserProfile(user);
 
-    // 로그인 상태: 기본 유저 정보 설정 후 Firestore 실시간 구독으로 병합
-    const fallbackHandle = getDisplayName(user);
-    userDocRefData.current = null;
-    profileSubDocRefData.current = null;
-    setIsProfileLoaded(false);
+  const links: CustomLink[] = !user ? [] : linksQuery.data ?? [];
 
-    const mergeAndApplyProfile = () => {
-      const uDoc = userDocRefData.current;
-      const pSubDoc = profileSubDocRefData.current;
-      const uProfileField =
-        uDoc?.profile && typeof uDoc.profile === "object" ? uDoc.profile : null;
-
-      // users/{uid}/profile 서브컬렉션과 users/{uid}.profile 필드 중 더 최신 데이터 우선 적용
-      const subTime = parseTimestamp(pSubDoc?.updatedAt);
-      const fieldTime = parseTimestamp(uProfileField?.updatedAt);
-      const primary =
-        pSubDoc && uProfileField
-          ? subTime >= fieldTime
-            ? pSubDoc
-            : uProfileField
-          : pSubDoc || uProfileField;
-      const secondary = primary === pSubDoc ? uProfileField : pSubDoc;
-
-      const resolvedUsername =
-        primary?.username ||
-        secondary?.username ||
-        uDoc?.username ||
-        fallbackHandle;
-
-      const resolvedDisplayName =
-        primary?.displayName ||
-        secondary?.displayName ||
-        uDoc?.displayName ||
-        fallbackHandle;
-
-      const resolvedBio =
-        primary?.bio !== undefined
-          ? primary.bio
-          : secondary?.bio !== undefined
-          ? secondary.bio
-          : uDoc?.bio !== undefined
-          ? uDoc.bio
-          : `${resolvedDisplayName}님의 링크 모음입니다.`;
-
-      setProfile((prev) => ({
-        ...prev,
-        username: String(resolvedUsername),
-        displayName: String(resolvedDisplayName),
-        bio: String(resolvedBio),
-        avatarUrl:
-          primary?.avatarUrl ||
-          uDoc?.photoURL ||
-          user.photoURL ||
-          "/avatar.svg",
-        email: user.email || uDoc?.email || undefined,
-        badge: "VERIFIED",
-      }));
-      setIsProfileLoaded(true);
-    };
-
-    setProfile((prev) => ({
-      ...prev,
-      displayName: fallbackHandle,
-      username: fallbackHandle,
-      avatarUrl: user.photoURL || "/avatar.svg",
-      email: user.email || undefined,
-      badge: "VERIFIED",
-      bio: `${fallbackHandle}님의 링크 모음입니다.`,
-    }));
-
-    // 1) users/{user.uid} 문서 리스너
-    const unsubUserDoc = onSnapshot(
-      doc(db, "users", user.uid),
-      (docSnap) => {
-        userDocRefData.current = docSnap.exists() ? docSnap.data() : null;
-        mergeAndApplyProfile();
-      },
-      (err) => {
-        console.warn("User doc listener error:", err);
-        setIsProfileLoaded(true);
+  // 3) 새 링크 추가 (useMutation)
+  const addLinkMutation = useMutation({
+    mutationFn: async (newLinkData: CreateLinkPayload) => {
+      if (!user) {
+        throw new Error("링크를 추가하려면 먼저 Google 계정으로 로그인해 주세요.");
       }
-    );
+      return createUserLink(user.uid, newLinkData);
+    },
+    onSuccess: (createdLink) => {
+      queryClient.setQueryData<CustomLink[]>(
+        myLinkKeys.links(uid),
+        (old = []) => [createdLink, ...old]
+      );
+      queryClient.invalidateQueries({ queryKey: myLinkKeys.links(uid) });
+      showToast("새 링크가 성공적으로 추가되었습니다! 🔥", "success");
+    },
+    onError: (err: any) => {
+      console.error("addLink error:", err);
+      showToast(
+        err?.message || "링크 저장에 실패했습니다. 다시 시도해 주세요.",
+        "error"
+      );
+    },
+  });
 
-    // 2) users/{user.uid}/profile 서브컬렉션 리스너
-    const unsubProfileCol = onSnapshot(
-      collection(db, "users", user.uid, "profile"),
-      (colSnap) => {
-        if (colSnap.empty) {
-          profileSubDocRefData.current = null;
-        } else {
-          // info 문서 우선 또는 updatedAt 최신 문서 선택
-          const sortedDocs = [...colSnap.docs].sort((a, b) => {
-            if (a.id === "info" && b.id !== "info") {
-              const tA = parseTimestamp(a.data().updatedAt);
-              const tB = parseTimestamp(b.data().updatedAt);
-              if (tA === tB) return -1;
-            }
-            return (
-              parseTimestamp(b.data().updatedAt) -
-              parseTimestamp(a.data().updatedAt)
-            );
-          });
-          profileSubDocRefData.current = sortedDocs[0]?.data() || null;
+  // 4) 링크 수정 (useMutation + 낙관적 캐시 업데이트 & 실패 시 롤백)
+  const updateLinkMutation = useMutation({
+    mutationFn: async ({
+      linkId,
+      updatedData,
+    }: {
+      linkId: string;
+      updatedData: UpdateLinkPayload;
+    }) => {
+      if (!user) {
+        throw new Error("수정 권한이 없습니다. 로그인해 주세요.");
+      }
+      return patchUserLink(user.uid, linkId, updatedData);
+    },
+    onMutate: async ({ linkId, updatedData }) => {
+      await queryClient.cancelQueries({ queryKey: myLinkKeys.links(uid) });
+      const previousLinks = queryClient.getQueryData<CustomLink[]>(
+        myLinkKeys.links(uid)
+      );
+
+      if (previousLinks) {
+        const now = Date.now();
+        let nextUrl = updatedData.url.trim();
+        if (
+          !nextUrl.startsWith("http://") &&
+          !nextUrl.startsWith("https://") &&
+          !nextUrl.startsWith("mailto:")
+        ) {
+          nextUrl = `https://${nextUrl}`;
         }
-        mergeAndApplyProfile();
-      },
-      (err) => {
-        console.warn("User profile subcollection listener error:", err);
-        setIsProfileLoaded(true);
+
+        queryClient.setQueryData<CustomLink[]>(
+          myLinkKeys.links(uid),
+          previousLinks.map((item) =>
+            item.id === linkId
+              ? {
+                  ...item,
+                  title: updatedData.title.trim(),
+                  url: nextUrl,
+                  updatedAt: now,
+                  ...(updatedData.subtitle !== undefined && {
+                    subtitle: updatedData.subtitle.trim() || undefined,
+                  }),
+                  ...(updatedData.badge !== undefined && {
+                    badge: updatedData.badge.trim() || undefined,
+                  }),
+                  ...(updatedData.icon !== undefined && {
+                    icon: updatedData.icon,
+                  }),
+                  ...(updatedData.highlight !== undefined && {
+                    highlight: !!updatedData.highlight,
+                  }),
+                }
+              : item
+          )
+        );
       }
-    );
 
-    setIsSyncing(true);
-    setIsLoaded(false);
-
-    // 🎯 Firestore 개인화 경로: users/{user.uid}/links
-    const userLinksCol = collection(db, "users", user.uid, "links");
-    const userQuery = query(userLinksCol, orderBy("createdAt", "desc"));
-
-    let fallbackUnsub: (() => void) | null = null;
-    const unsubLinks = onSnapshot(
-      userQuery,
-      (snapshot) => {
-        const nextMap = new Map<string, CustomLink>();
-        snapshot.docs.forEach((docSnap) => {
-          nextMap.set(docSnap.id, docToCustomLink(docSnap));
-        });
-        commitLinks(nextMap);
-        setIsSyncing(false);
-      },
-      (error) => {
-        console.warn("User links ordered listener fallback to plain listener:", error);
-        // 복합 인덱스 미생성 시 일반 getDocs/리스너 대체
-        fallbackUnsub = onSnapshot(userLinksCol, (snap) => {
-          const nextMap = new Map<string, CustomLink>();
-          snap.docs.forEach((d) => nextMap.set(d.id, docToCustomLink(d)));
-          commitLinks(nextMap);
-          setIsSyncing(false);
-        });
+      return { previousLinks };
+    },
+    onSuccess: () => {
+      showToast("링크가 성공적으로 갱신되었습니다! ✏️", "success");
+    },
+    onError: (err: any, _vars, context) => {
+      console.error("updateLink error:", err);
+      if (context?.previousLinks) {
+        queryClient.setQueryData(myLinkKeys.links(uid), context.previousLinks);
       }
-    );
+      showToast("링크 수정에 실패했습니다. 다시 시도해 주세요.", "error");
+    },
+    onSettled: () => {
+      if (uid) {
+        queryClient.invalidateQueries({ queryKey: myLinkKeys.links(uid) });
+      }
+    },
+  });
 
-    return () => {
-      unsubUserDoc();
-      unsubProfileCol();
-      unsubLinks();
-      if (fallbackUnsub) fallbackUnsub();
-    };
-  }, [user, commitLinks]);
+  // 5) 링크 삭제 (useMutation + 낙관적 캐시 제거 & 실패 시 롤백)
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      if (!user) {
+        throw new Error("삭제 권한이 없습니다. 로그인해 주세요.");
+      }
+      await removeUserLink(user.uid, linkId);
+    },
+    onMutate: async (linkId) => {
+      await queryClient.cancelQueries({ queryKey: myLinkKeys.links(uid) });
+      const previousLinks = queryClient.getQueryData<CustomLink[]>(
+        myLinkKeys.links(uid)
+      );
 
-  // 🔄 수동 새로고침 / 최신 데이터 강제 동기화
+      if (previousLinks) {
+        queryClient.setQueryData<CustomLink[]>(
+          myLinkKeys.links(uid),
+          previousLinks.filter((item) => item.id !== linkId)
+        );
+      }
+
+      return { previousLinks };
+    },
+    onSuccess: () => {
+      showToast("링크가 삭제되었습니다. 🗑️", "success");
+    },
+    onError: (err: any, _linkId, context) => {
+      console.error("deleteLink error:", err);
+      if (context?.previousLinks) {
+        queryClient.setQueryData(myLinkKeys.links(uid), context.previousLinks);
+      }
+      showToast("링크 삭제에 실패했습니다.", "error");
+    },
+    onSettled: () => {
+      if (uid) {
+        queryClient.invalidateQueries({ queryKey: myLinkKeys.links(uid) });
+      }
+    },
+  });
+
+  // 6) 링크 클릭수 증가 (useMutation)
+  const clickLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      if (!user) return;
+      await incrementUserLinkClick(user.uid, linkId);
+    },
+    onMutate: async (linkId) => {
+      queryClient.setQueryData<CustomLink[]>(myLinkKeys.links(uid), (old) =>
+        old
+          ? old.map((link) =>
+              link.id === linkId
+                ? { ...link, clicks: (link.clicks || 0) + 1 }
+                : link
+            )
+          : old
+      );
+    },
+  });
+
+  // 7) 프로필 수정 (useMutation + 낙관적 캐시 업데이트 & 실패 시 롤백)
+  const previousUsernameRef = useRef<string>(profile.username);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (input: UpdateProfilePayload) => {
+      if (!user) {
+        throw new Error("프로필을 수정하려면 먼저 로그인해 주세요.");
+      }
+      return saveUserProfile(user.uid, input, previousUsernameRef.current);
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: myLinkKeys.profile(uid) });
+
+      const previousProfile = queryClient.getQueryData<MyLinkProfile>(
+        myLinkKeys.profile(uid)
+      );
+      const baseProfile = previousProfile ?? profile;
+      previousUsernameRef.current = baseProfile.username;
+
+      const optimisticProfile: MyLinkProfile = {
+        ...baseProfile,
+        username: normalizeUsername(input.username),
+        displayName: input.displayName.trim(),
+        bio: input.bio.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData<MyLinkProfile>(
+        myLinkKeys.profile(uid),
+        optimisticProfile
+      );
+
+      return { previousProfile, fallbackProfile: baseProfile };
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData<MyLinkProfile>(
+        myLinkKeys.profile(uid),
+        (prev) => ({
+          ...(prev ?? profile),
+          username: saved.username,
+          displayName: saved.displayName,
+          bio: saved.bio,
+          updatedAt: saved.updatedAt,
+        })
+      );
+      queryClient.removeQueries({
+        queryKey: ["mylink", "username-check"],
+      });
+      showToast("프로필 정보가 성공적으로 수정되었습니다! ✨", "success");
+    },
+    onError: (err: any, _input, context) => {
+      console.error("updateProfile error:", err);
+      if (context?.previousProfile !== undefined) {
+        queryClient.setQueryData(
+          myLinkKeys.profile(uid),
+          context.previousProfile
+        );
+      } else if (context?.fallbackProfile) {
+        queryClient.setQueryData(
+          myLinkKeys.profile(uid),
+          context.fallbackProfile
+        );
+      }
+      showToast(
+        err?.message || "프로필 저장에 실패하여 이전 정보로 복구되었습니다.",
+        "error"
+      );
+    },
+    onSettled: () => {
+      if (uid) {
+        queryClient.invalidateQueries({ queryKey: myLinkKeys.profile(uid) });
+      }
+    },
+  });
+
+  // 수동 새로고침 (명시적 refetch)
   const refreshLinks = useCallback(
     async (silent: boolean = false) => {
       if (!user) {
         showToast("로그인 후 링크를 새로고침할 수 있습니다.", "error");
         return;
       }
-
-      if (!silent) setIsSyncing(true);
       try {
-        const userLinksCol = collection(db, "users", user.uid, "links");
-        const userQuery = query(userLinksCol, orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(userQuery).catch(() => getDocs(userLinksCol));
-
-        const newMap = new Map<string, CustomLink>();
-        snapshot.docs.forEach((d) => {
-          newMap.set(d.id, docToCustomLink(d));
-        });
-
-        commitLinks(newMap);
+        await Promise.all([linksQuery.refetch(), profileQuery.refetch()]);
         if (!silent) {
-          showToast("최신 링크 목록으로 동기화되었습니다. ⚡", "success");
+          showToast("최신 데이터로 새로고침되었습니다. ⚡", "success");
         }
       } catch (e) {
         console.error("refreshLinks error:", e);
         if (!silent) {
-          showToast("동기화 중 오류가 발생했습니다.", "error");
-        }
-      } finally {
-        if (!silent) {
-          setTimeout(() => setIsSyncing(false), 300);
+          showToast("새로고침 중 오류가 발생했습니다.", "error");
         }
       }
     },
-    [user, commitLinks, showToast]
+    [user, linksQuery, profileQuery, showToast]
   );
 
-  // ➕ 새 링크 추가 핸들러: users/{user.uid}/links에 저장
+  // username 중복 확인 (QueryClient fetchQuery 활용)
+  const checkUsernameAvailability = useCallback(
+    async (rawUsername: string): Promise<UsernameCheckResult> => {
+      const normalized = normalizeUsername(rawUsername).toLowerCase();
+      return queryClient.fetchQuery({
+        queryKey: myLinkKeys.usernameCheck(user?.uid, normalized || rawUsername),
+        queryFn: () =>
+          checkUsernameInFirestore(rawUsername, user?.uid, profile.username),
+        staleTime: 10 * 1000,
+      });
+    },
+    [queryClient, user?.uid, profile.username]
+  );
+
   const addLink = useCallback(
-    async (newLinkData: {
-      title: string;
-      url: string;
-      subtitle?: string;
-      badge?: string;
-      icon?: string;
-      highlight?: boolean;
-    }) => {
-      if (!user) {
-        showToast("링크를 추가하려면 먼저 Google 계정으로 로그인해 주세요.", "error");
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      setIsSyncing(true);
-      try {
-        const title = newLinkData.title.trim();
-        let url = newLinkData.url.trim();
-        if (
-          !url.startsWith("http://") &&
-          !url.startsWith("https://") &&
-          !url.startsWith("mailto:")
-        ) {
-          url = `https://${url}`;
-        }
-
-        const docData: Record<string, any> = {
-          title,
-          url,
-          icon: newLinkData.icon || "globe",
-          highlight: !!newLinkData.highlight,
-          enabled: true,
-          clicks: 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-
-        if (newLinkData.subtitle && newLinkData.subtitle.trim()) {
-          docData.subtitle = newLinkData.subtitle.trim();
-        }
-        if (newLinkData.badge && newLinkData.badge.trim()) {
-          docData.badge = newLinkData.badge.trim();
-        }
-
-        // Firestore 개인화 경로: users/{user.uid}/links
-        const userLinksColRef = collection(db, "users", user.uid, "links");
-        const newDocRef = doc(userLinksColRef);
-        await setDoc(newDocRef, docData);
-
-        const createdLink: CustomLink = {
-          id: newDocRef.id,
-          title,
-          url,
-          subtitle: newLinkData.subtitle?.trim() || undefined,
-          badge: newLinkData.badge?.trim() || undefined,
-          icon: newLinkData.icon || "globe",
-          highlight: !!newLinkData.highlight,
-          enabled: true,
-          clicks: 0,
-          createdAt: Date.now(),
-        };
-
-        // 낙관적 즉시 업데이트
-        const updatedMap = new Map(linksMapRef.current);
-        updatedMap.set(newDocRef.id, createdLink);
-        commitLinks(updatedMap);
-
-        showToast("새 링크가 성공적으로 추가되었습니다! 🔥", "success");
-        return createdLink;
-      } catch (error: any) {
-        console.error("Firestore addLink error:", error);
-        showToast("링크 저장에 실패했습니다. 다시 시도해 주세요.", "error");
-        setIsSyncing(false);
-        throw error;
-      }
-    },
-    [user, commitLinks, showToast]
+    (newLinkData: CreateLinkPayload) =>
+      addLinkMutation.mutateAsync(newLinkData),
+    [addLinkMutation]
   );
 
-  // ✏️ 링크 수정 핸들러: users/{user.uid}/links/{linkId} 수정
   const updateLink = useCallback(
-    async (
-      linkId: string,
-      updatedData: {
-        title: string;
-        url: string;
-        subtitle?: string;
-        badge?: string;
-        icon?: string;
-        highlight?: boolean;
-      }
-    ) => {
-      if (!user) {
-        showToast("수정 권한이 없습니다. 로그인해 주세요.", "error");
-        return;
-      }
-
-      setIsSyncing(true);
-      try {
-        const title = updatedData.title.trim();
-        let url = updatedData.url.trim();
-        if (
-          !url.startsWith("http://") &&
-          !url.startsWith("https://") &&
-          !url.startsWith("mailto:")
-        ) {
-          url = `https://${url}`;
-        }
-
-        const patchData: Record<string, any> = {
-          title,
-          url,
-          updatedAt: serverTimestamp(),
-        };
-
-        if (updatedData.subtitle !== undefined) {
-          patchData.subtitle = updatedData.subtitle.trim() || "";
-        }
-        if (updatedData.badge !== undefined) {
-          patchData.badge = updatedData.badge.trim() || "";
-        }
-        if (updatedData.icon !== undefined) {
-          patchData.icon = updatedData.icon;
-        }
-        if (updatedData.highlight !== undefined) {
-          patchData.highlight = !!updatedData.highlight;
-        }
-
-        // 낙관적 로컬 상태 즉각 반영
-        const now = Date.now();
-        const nextMap = new Map(linksMapRef.current);
-        const existing = nextMap.get(linkId);
-        if (existing) {
-          const updatedItem: CustomLink = {
-            ...existing,
-            title,
-            url,
-            updatedAt: now,
-            ...(updatedData.subtitle !== undefined && {
-              subtitle: updatedData.subtitle.trim() || undefined,
-            }),
-            ...(updatedData.badge !== undefined && {
-              badge: updatedData.badge.trim() || undefined,
-            }),
-            ...(updatedData.icon !== undefined && { icon: updatedData.icon }),
-            ...(updatedData.highlight !== undefined && {
-              highlight: !!updatedData.highlight,
-            }),
-          };
-          nextMap.set(linkId, updatedItem);
-          commitLinks(nextMap);
-        }
-
-        const docRef = doc(db, "users", user.uid, "links", linkId);
-        await updateDoc(docRef, patchData);
-
-        showToast("링크가 성공적으로 갱신되었습니다! ✏️", "success");
-      } catch (error: any) {
-        console.error("Firestore updateLink error:", error);
-        showToast("링크 수정에 실패했습니다. 다시 시도해 주세요.", "error");
-        throw error;
-      } finally {
-        setTimeout(() => setIsSyncing(false), 200);
-      }
-    },
-    [user, commitLinks, showToast]
+    (linkId: string, updatedData: UpdateLinkPayload) =>
+      updateLinkMutation.mutateAsync({ linkId, updatedData }),
+    [updateLinkMutation]
   );
 
-  // 🗑️ 링크 삭제 핸들러: users/{user.uid}/links/{linkId} 삭제
   const deleteLink = useCallback(
-    async (linkId: string) => {
-      if (!user) {
-        showToast("삭제 권한이 없습니다. 로그인해 주세요.", "error");
-        return;
-      }
-
-      setDeletingId(linkId);
-      setIsSyncing(true);
-
-      // 낙관적 UI 업데이트
-      const nextMap = new Map(linksMapRef.current);
-      nextMap.delete(linkId);
-      commitLinks(nextMap);
-
-      try {
-        const docRef = doc(db, "users", user.uid, "links", linkId);
-        await deleteDoc(docRef);
-        showToast("링크가 삭제되었습니다. 🗑️", "success");
-      } catch (e) {
-        console.error("Firestore deleteDoc error:", e);
-        showToast("링크 삭제에 실패했습니다.", "error");
-      } finally {
-        setDeletingId(null);
-        setTimeout(() => setIsSyncing(false), 200);
-      }
-    },
-    [user, commitLinks, showToast]
+    (linkId: string) => deleteLinkMutation.mutateAsync(linkId),
+    [deleteLinkMutation]
   );
 
-  // 📈 링크 클릭수 증가 핸들러
   const trackLinkClick = useCallback(
     (linkId: string) => {
       if (!user) return;
-
-      setLinks((prevLinks) => {
-        return prevLinks.map((link) => {
-          if (link.id === linkId) {
-            return {
-              ...link,
-              clicks: (link.clicks || 0) + 1,
-            };
-          }
-          return link;
-        });
-      });
-
-      try {
-        const docRef = doc(db, "users", user.uid, "links", linkId);
-        updateDoc(docRef, {
-          clicks: increment(1),
-        }).catch(() => {});
-      } catch (e) {
-        console.warn("Firestore click increment error:", e);
-      }
+      clickLinkMutation.mutate(linkId);
     },
-    [user]
+    [user, clickLinkMutation]
   );
 
-  // 📋 클립보드 복사 유틸리티
+  const updateProfile = useCallback(
+    async (input: UpdateProfilePayload) => {
+      await updateProfileMutation.mutateAsync(input);
+    },
+    [updateProfileMutation]
+  );
+
   const copyToClipboard = useCallback(
     async (text: string, label: string = "링크") => {
       try {
@@ -578,164 +399,18 @@ export function useMyLinkData(user: User | null) {
     [showToast]
   );
 
-  // 🔍 username 중복 확인 핸들러 (대소문자 무시 비교 + 본인 제외)
-  const checkUsernameAvailability = useCallback(
-    async (rawUsername: string): Promise<UsernameCheckResult> => {
-      const clean = normalizeUsername(rawUsername);
-      const parsed = usernameFieldSchema.safeParse(clean);
-      if (!parsed.success) {
-        return {
-          available: false,
-          message:
-            parsed.error.issues[0]?.message ||
-            "올바른 username 형식을 입력해 주세요.",
-        };
-      }
-
-      const normalized = clean.toLowerCase();
-      const usersCol = collection(db, "users");
-
-      const queries = [
-        getDocs(query(usersCol, where("profile.usernameLower", "==", normalized))),
-        getDocs(query(usersCol, where("usernameLower", "==", normalized))),
-        getDocs(query(usersCol, where("displayName", "==", clean))),
-      ];
-      if (normalized !== clean) {
-        queries.push(
-          getDocs(query(usersCol, where("displayName", "==", normalized)))
-        );
-      }
-
-      const [byProfileField, byTopLower, ...legacySnaps] =
-        await Promise.all(queries);
-
-      const hasIndexedConflict =
-        byProfileField.docs.some((d) => d.id !== user?.uid) ||
-        byTopLower.docs.some((d) => d.id !== user?.uid);
-
-      const hasLegacyConflict = legacySnaps.some((snap) =>
-        snap.docs.some((d) => {
-          if (d.id === user?.uid) return false;
-          const data = d.data();
-          // 아직 별도 usernameLower가 설정되지 않은 기존 가입 유저의 기본 핸들과 충돌하는지 확인
-          return !data.profile?.usernameLower && !data.usernameLower;
-        })
-      );
-
-      if (hasIndexedConflict || hasLegacyConflict) {
-        return {
-          available: false,
-          message: "이미 사용 중인 username입니다. 다른 아이디를 입력해 주세요.",
-        };
-      }
-
-      const isCurrentMine =
-        !!user && profile.username.toLowerCase() === normalized;
-
-      return {
-        available: true,
-        isCurrentMine,
-        message: isCurrentMine
-          ? "현재 사용 중인 내 username입니다."
-          : "사용 가능한 username입니다!",
-      };
-    },
-    [user, profile.username]
-  );
-
-  // 👤 프로필 수정 핸들러: users/{userId}/profile 및 users/{userId} 동기화 저장
-  const updateProfile = useCallback(
-    async (input: { username: string; displayName: string; bio: string }) => {
-      if (!user) {
-        showToast("프로필을 수정하려면 먼저 로그인해 주세요.", "error");
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      const cleanUsername = normalizeUsername(input.username);
-      const parsed = updateProfileSchema.safeParse({
-        username: cleanUsername,
-        displayName: input.displayName,
-        bio: input.bio,
-      });
-
-      if (!parsed.success) {
-        const errMsg =
-          parsed.error.issues[0]?.message || "입력값을 다시 확인해 주세요.";
-        showToast(errMsg, "error");
-        throw new Error(errMsg);
-      }
-
-      setIsSyncing(true);
-      try {
-        // 저장 직전 최종 중복 여부 재검증
-        const availability = await checkUsernameAvailability(cleanUsername);
-        if (!availability.available) {
-          showToast(availability.message, "error");
-          throw new Error(availability.message);
-        }
-
-        const cleanDisplayName = parsed.data.displayName;
-        const cleanBio = parsed.data.bio;
-        const usernameLower = cleanUsername.toLowerCase();
-
-        // 낙관적 로컬 상태 반영
-        setProfile((prev) => ({
-          ...prev,
-          username: cleanUsername,
-          displayName: cleanDisplayName,
-          bio: cleanBio,
-          updatedAt: new Date().toISOString(),
-        }));
-
-        const profilePayload = {
-          uid: user.uid,
-          username: cleanUsername,
-          usernameLower,
-          displayName: cleanDisplayName,
-          bio: cleanBio,
-          updatedAt: serverTimestamp(),
-        };
-
-        // users/{userId}/profile 서브컬렉션 및 users/{userId}.profile 필드 동시 업데이트
-        const results = await Promise.allSettled([
-          setDoc(
-            doc(db, "users", user.uid, "profile", "info"),
-            profilePayload,
-            { merge: true }
-          ),
-          setDoc(
-            doc(db, "users", user.uid),
-            {
-              uid: user.uid,
-              username: cleanUsername,
-              usernameLower,
-              displayName: cleanDisplayName,
-              bio: cleanBio,
-              profile: profilePayload,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          ),
-        ]);
-
-        const anySucceeded = results.some((r) => r.status === "fulfilled");
-        if (!anySucceeded) {
-          const rejected = results.find(
-            (r) => r.status === "rejected"
-          ) as PromiseRejectedResult | undefined;
-          throw rejected?.reason || new Error("프로필 저장에 실패했습니다.");
-        }
-
-        showToast("프로필 정보가 성공적으로 수정되었습니다! ✨", "success");
-      } catch (err: any) {
-        console.error("updateProfile error:", err);
-        throw err;
-      } finally {
-        setTimeout(() => setIsSyncing(false), 200);
-      }
-    },
-    [user, checkUsernameAvailability, showToast]
-  );
+  const isLoaded = !user ? true : !linksQuery.isLoading;
+  const isProfileLoaded = !user ? true : !profileQuery.isLoading;
+  const isSyncing =
+    linksQuery.isFetching ||
+    profileQuery.isFetching ||
+    addLinkMutation.isPending ||
+    updateLinkMutation.isPending ||
+    deleteLinkMutation.isPending ||
+    updateProfileMutation.isPending;
+  const deletingId = deleteLinkMutation.isPending
+    ? (deleteLinkMutation.variables ?? null)
+    : null;
 
   return {
     profile,

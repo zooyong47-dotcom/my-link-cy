@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,16 +15,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "신찬용 (Chan-yong Shin) | MyLink Profile",
-  description: "신찬용의 프로필 및 링크 페이지입니다. 새로운 기술을 탐구하는 학생 개발자 신찬용의 링크 모음.",
+  description:
+    "신찬용의 프로필 및 링크 페이지입니다. 새로운 기술을 탐구하는 학생 개발자 신찬용의 링크 모음.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

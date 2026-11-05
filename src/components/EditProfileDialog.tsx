@@ -63,7 +63,7 @@ export function EditProfileDialog({
           onCheckUsername={onCheckUsername}
           onSaveProfile={onSaveProfile}
           onCancel={() => onOpenChange(false)}
-          onSuccess={() => onOpenChange(false)}
+          onOptimisticSubmit={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>

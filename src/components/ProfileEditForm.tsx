@@ -29,6 +29,7 @@ interface ProfileEditFormProps {
   onSaveProfile: (data: UpdateProfileInput) => Promise<void>;
   onCancel?: () => void;
   onSuccess?: () => void;
+  onOptimisticSubmit?: () => void;
 }
 
 type CheckState =
@@ -45,6 +46,7 @@ export function ProfileEditForm({
   onSaveProfile,
   onCancel,
   onSuccess,
+  onOptimisticSubmit,
 }: ProfileEditFormProps) {
   const {
     register,
@@ -195,7 +197,15 @@ export function ProfileEditForm({
         displayName: data.displayName.trim(),
         bio: data.bio.trim(),
       };
-      await onSaveProfile(savedValues);
+
+      const savePromise = onSaveProfile(savedValues);
+      if (onOptimisticSubmit) {
+        savePromise.catch(() => {});
+        onOptimisticSubmit();
+        return;
+      }
+
+      await savePromise;
 
       reset(savedValues);
       setVerifiedUsernameLower(normalizedTarget);
