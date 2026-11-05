@@ -17,6 +17,8 @@ import {
   Flame,
   UserCog,
   UserPen,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/icons";
@@ -79,6 +81,12 @@ export function AppHeader({
   onOpenEditProfile,
 }: AppHeaderProps) {
   const pathname = usePathname();
+  let decodedPathname = pathname || "/";
+  try {
+    decodedPathname = decodeURIComponent(pathname || "/");
+  } catch {
+    decodedPathname = pathname || "/";
+  }
   const isMyPage = pathname === "/mypage";
 
   const displayName = user
@@ -91,6 +99,17 @@ export function AppHeader({
       ? profile.username
       : getDisplayName(user)
     : "guest";
+  const personalSlug = user ? username : "";
+  const personalPageHref = personalSlug
+    ? `/${encodeURIComponent(personalSlug)}`
+    : "/";
+  const isPersonalPage =
+    !!user &&
+    !!personalSlug &&
+    (decodedPathname.toLowerCase() === `/${personalSlug.toLowerCase()}` ||
+      decodedPathname.toLowerCase() === `/@${personalSlug.toLowerCase()}` ||
+      (!!displayName &&
+        decodedPathname.toLowerCase() === `/${displayName.toLowerCase()}`));
   const avatarSrc =
     (user && profile?.avatarUrl && profile.avatarUrl !== "/avatar.svg"
       ? profile.avatarUrl
@@ -105,7 +124,7 @@ export function AppHeader({
         )
       : null;
   const isGoogle = user?.providerData.some((p) => p.providerId === "google.com");
-  const handleUrl = `mylink.com/@${username}`;
+  const handleUrl = `mylink.com/${username}`;
 
   return (
     <header className="sticky top-0 z-40 w-full bg-static-white/90 backdrop-blur-md border-b border-neutral-weak2">
@@ -141,10 +160,25 @@ export function AppHeader({
           ) : (
             <>
               <Button
+                variant={isPersonalPage ? "secondary" : "ghost"}
+                size="sm"
+                render={<Link href={personalPageHref} prefetch={false} />}
+                title={`내 개인 페이지로 이동 (/${personalSlug})`}
+                className={`rounded-full text-xs font-semibold h-8 px-2.5 sm:px-3 gap-1 ${
+                  isPersonalPage
+                    ? "text-primary-main"
+                    : "text-neutral-strong1 hover:text-primary-main"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>내 페이지</span>
+              </Button>
+
+              <Button
                 variant={isMyPage ? "secondary" : "ghost"}
                 size="sm"
                 render={<Link href="/mypage" />}
-                className={`rounded-full text-xs font-semibold h-8 px-3 gap-1 ${
+                className={`rounded-full text-xs font-semibold h-8 px-2.5 sm:px-3 gap-1 ${
                   isMyPage
                     ? "text-primary-main"
                     : "text-neutral-strong1 hover:text-primary-main"
@@ -168,7 +202,7 @@ export function AppHeader({
                     unoptimized
                     className="w-6.5 h-6.5 rounded-full object-cover border border-neutral-weak2 shrink-0"
                   />
-                  <span className="text-xs font-bold text-neutral-main max-w-[100px] sm:max-w-[140px] truncate">
+                  <span className="text-xs font-bold text-neutral-main max-w-[72px] sm:max-w-[130px] truncate">
                     {displayName}님
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-neutral-medium shrink-0" />
@@ -207,9 +241,13 @@ export function AppHeader({
 
                       {/* 2. 프로필 주소 복사 바 */}
                       <div className="mx-1.5 my-1.5 flex items-center justify-between gap-2 rounded-[10px] bg-neutral-weak px-3 py-2">
-                        <span className="text-xs font-mono text-neutral-strong1 truncate">
+                        <Menu.Item
+                          render={<Link href={personalPageHref} prefetch={false} />}
+                          className="text-xs font-mono text-neutral-strong1 hover:text-primary-main hover:underline truncate cursor-pointer outline-none min-w-0 flex-1"
+                          title="내 개인 페이지로 이동"
+                        >
                           {handleUrl}
-                        </span>
+                        </Menu.Item>
                         <Menu.Item
                           onClick={onCopyProfileUrl}
                           className="text-[11px] font-bold text-primary-main hover:underline cursor-pointer outline-none shrink-0"
@@ -257,8 +295,19 @@ export function AppHeader({
 
                       <Menu.Separator className="my-1 h-px bg-neutral-weak2" />
 
-                      {/* 4. 마이 페이지 & 공유 메뉴 */}
+                      {/* 4. 개인 페이지 · 마이 페이지 · 공유 메뉴 */}
                       <Menu.Group>
+                        <Menu.Item
+                          className={menuItemClass}
+                          render={<Link href={personalPageHref} prefetch={false} />}
+                        >
+                          <ExternalLink className="w-4 h-4 text-primary-main shrink-0" />
+                          <span className="flex-1">내 개인 페이지 이동</span>
+                          <span className="text-[11px] font-mono text-neutral-medium truncate max-w-[110px]">
+                            /{personalSlug}
+                          </span>
+                        </Menu.Item>
+
                         <Menu.Item
                           className={menuItemClass}
                           render={<Link href="/mypage" />}
@@ -266,6 +315,16 @@ export function AppHeader({
                           <UserCog className="w-4 h-4 text-primary-main shrink-0" />
                           <span>마이 페이지 (프로필 관리)</span>
                         </Menu.Item>
+
+                        {pathname !== "/" && (
+                          <Menu.Item
+                            className={menuItemClass}
+                            render={<Link href="/" />}
+                          >
+                            <Link2 className="w-4 h-4 text-neutral-medium shrink-0" />
+                            <span>링크 편집 홈</span>
+                          </Menu.Item>
+                        )}
 
                         {onOpenEditProfile && (
                           <Menu.Item

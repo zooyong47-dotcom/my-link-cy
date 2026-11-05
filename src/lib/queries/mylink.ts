@@ -14,6 +14,7 @@ import {
   increment,
   DocumentData,
   QueryDocumentSnapshot,
+  QuerySnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { MOCK_PROFILE } from "@/data/mockData";
@@ -21,9 +22,17 @@ import { CustomLink, MyLinkProfile } from "@/types/mylink";
 import { getDisplayName } from "@/lib/utils";
 import {
   normalizeUsername,
+  RESERVED_USERNAMES,
   usernameFieldSchema,
   updateProfileSchema,
 } from "@/lib/validations/profile";
+
+export interface PublicUserPageData {
+  uid: string;
+  profile: MyLinkProfile;
+  links: CustomLink[];
+  fetchedAt: number;
+}
 
 export interface UsernameCheckResult {
   available: boolean;
@@ -103,6 +112,9 @@ function docToCustomLink(
   docSnap: QueryDocumentSnapshot<DocumentData>
 ): CustomLink {
   const data = docSnap.data();
+  const createdAtMs = parseTimestamp(data.createdAt || data.createdAT);
+  const updatedAtMs = parseTimestamp(data.updatedAt || data.updateAt);
+
   return {
     id: docSnap.id,
     title: data.title || "제목 없음",
@@ -117,9 +129,9 @@ function docToCustomLink(
     icon: data.icon || "globe",
     bgColor: data.bgColor || undefined,
     badgeColor: data.badgeColor || undefined,
-    createdAt: data.createdAt || data.createdAT || undefined,
-    updateAt: data.updateAt || data.updatedAt || undefined,
-    updatedAt: data.updatedAt || data.updateAt || undefined,
+    createdAt: createdAtMs || undefined,
+    updateAt: updatedAtMs || undefined,
+    updatedAt: updatedAtMs || undefined,
   };
 }
 
@@ -135,23 +147,20 @@ function normalizeUrlProtocol(rawUrl: string): string {
   return trimmed;
 }
 
-/**
- * 단발 조회: users/{uid} 문서 및 users/{uid}/profile 서브컬렉션에서 프로필 조회
- */
-export async function fetchUserProfile(user: User): Promise<MyLinkProfile> {
-  const fallbackHandle = getDisplayName(user);
-
-  const [userDocSnap, profileColSnap] = await Promise.all([
-    getDoc(doc(db, "users", user.uid)),
-    getDocs(collection(db, "users", user.uid, "profile")),
-  ]);
-
-  const uDoc = userDocSnap.exists() ? userDocSnap.data() : null;
+function resolveMyLinkProfile(
+  uDoc: DocumentData | null,
+  profileColSnap: QuerySnapshot<DocumentData> | null,
+  fallback: {
+    handle: string;
+    photoURL?: string | null;
+    email?: string | null;
+  }
+): MyLinkProfile {
   const uProfileField =
     uDoc?.profile && typeof uDoc.profile === "object" ? uDoc.profile : null;
 
   let pSubDoc: DocumentData | null = null;
-  if (!profileColSnap.empty) {
+  if (profileColSnap && !profileColSnap.empty) {
     const sortedDocs = [...profileColSnap.docs].sort((a, b) => {
       if (a.id === "info" && b.id !== "info") {
         const tA = parseTimestamp(a.data().updatedAt);
@@ -179,13 +188,15 @@ export async function fetchUserProfile(user: User): Promise<MyLinkProfile> {
     primary?.username ||
     secondary?.username ||
     uDoc?.username ||
-    fallbackHandle;
+    uDoc?.displayName ||
+    fallback.handle;
 
   const resolvedDisplayName =
     primary?.displayName ||
     secondary?.displayName ||
     uDoc?.displayName ||
-    fallbackHandle;
+    uDoc?.username ||
+    fallback.handle;
 
   const resolvedBio =
     primary?.bio !== undefined
@@ -196,15 +207,140 @@ export async function fetchUserProfile(user: User): Promise<MyLinkProfile> {
       ? uDoc.bio
       : `${resolvedDisplayName}님의 링크 모음입니다.`;
 
+  const updatedMs = Math.max(
+    subTime,
+    fieldTime,
+    parseTimestamp(uDoc?.updatedAt)
+  );
+
   return {
     ...MOCK_PROFILE,
     username: String(resolvedUsername),
     displayName: String(resolvedDisplayName),
     bio: String(resolvedBio),
     avatarUrl:
-      primary?.avatarUrl || uDoc?.photoURL || user.photoURL || "/avatar.svg",
-    email: user.email || uDoc?.email || undefined,
+      primary?.avatarUrl || uDoc?.photoURL || fallback.photoURL || "/avatar.svg",
+    email: fallback.email || uDoc?.email || undefined,
     badge: "VERIFIED",
+    updatedAt: updatedMs > 0 ? new Date(updatedMs).toISOString() : MOCK_PROFILE.updatedAt,
+  };
+}
+
+/**
+ * 단발 조회: users/{uid} 문서 및 users/{uid}/profile 서브컬렉션에서 프로필 조회
+ */
+export async function fetchUserProfile(user: User): Promise<MyLinkProfile> {
+  const fallbackHandle = getDisplayName(user);
+
+  const [userDocSnap, profileColSnap] = await Promise.all([
+    getDoc(doc(db, "users", user.uid)),
+    getDocs(collection(db, "users", user.uid, "profile")),
+  ]);
+
+  const uDoc = userDocSnap.exists() ? userDocSnap.data() : null;
+  return resolveMyLinkProfile(uDoc, profileColSnap, {
+    handle: fallbackHandle,
+    photoURL: user.photoURL,
+    email: user.email,
+  });
+}
+
+/**
+ * 단발 조회: uid만으로 공개 프로필 조회 (방문자 뷰 및 캐시 재검증용)
+ */
+export async function fetchUserProfileByUid(
+  uid: string,
+  preloadedUserDoc?: DocumentData | null
+): Promise<MyLinkProfile> {
+  const [userDocSnap, profileColSnap] = await Promise.all([
+    preloadedUserDoc
+      ? Promise.resolve(null)
+      : getDoc(doc(db, "users", uid)),
+    getDocs(collection(db, "users", uid, "profile")).catch(() => null),
+  ]);
+
+  const uDoc =
+    preloadedUserDoc ??
+    (userDocSnap && userDocSnap.exists() ? userDocSnap.data() : null);
+  const fallbackHandle = getDisplayName({
+    uid,
+    email: uDoc?.email || null,
+  });
+
+  return resolveMyLinkProfile(uDoc, profileColSnap, {
+    handle: fallbackHandle,
+    photoURL: uDoc?.photoURL || null,
+    email: uDoc?.email || null,
+  });
+}
+
+/**
+ * 단발 조회: /[displayname] 동적 라우팅용 유저 검색 (where 쿼리) + users/{userId}/links 조회
+ * 매칭되는 사용자가 없으면 null 반환 (404 처리)
+ */
+export async function fetchPublicUserByDisplayname(
+  rawDisplayname: string
+): Promise<PublicUserPageData | null> {
+  let decoded = rawDisplayname;
+  try {
+    decoded = decodeURIComponent(rawDisplayname);
+  } catch {
+    decoded = rawDisplayname;
+  }
+
+  const trimmed = decoded.trim();
+  const clean = normalizeUsername(trimmed);
+  if (!clean) {
+    return null;
+  }
+
+  const lower = clean.toLowerCase();
+  if (RESERVED_USERNAMES.has(lower)) {
+    return null;
+  }
+
+  const usersCol = collection(db, "users");
+  const searchQueries = [
+    getDocs(query(usersCol, where("usernameLower", "==", lower))),
+    getDocs(query(usersCol, where("profile.usernameLower", "==", lower))),
+    getDocs(query(usersCol, where("username", "==", clean))),
+    getDocs(query(usersCol, where("displayName", "==", clean))),
+    getDocs(query(usersCol, where("profile.displayName", "==", clean))),
+  ];
+
+  if (trimmed !== clean) {
+    searchQueries.push(
+      getDocs(query(usersCol, where("displayName", "==", trimmed))),
+      getDocs(query(usersCol, where("profile.displayName", "==", trimmed)))
+    );
+  }
+
+  if (lower !== clean) {
+    searchQueries.push(
+      getDocs(query(usersCol, where("displayName", "==", lower)))
+    );
+  }
+
+  const snapshots = await Promise.all(searchQueries);
+  const matchedDoc = snapshots.flatMap((snap) => snap.docs)[0] ?? null;
+
+  if (!matchedDoc) {
+    return null;
+  }
+
+  const userId = matchedDoc.id;
+  const uDoc = matchedDoc.data();
+
+  const [profile, links] = await Promise.all([
+    fetchUserProfileByUid(userId, uDoc),
+    fetchUserLinks(userId),
+  ]);
+
+  return {
+    uid: userId,
+    profile,
+    links,
+    fetchedAt: Date.now(),
   };
 }
 

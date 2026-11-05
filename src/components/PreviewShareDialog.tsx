@@ -50,7 +50,7 @@ export function PreviewShareDialog({
   const [copied, setCopied] = useState(false);
 
   const activeLinks = links.filter((link) => link.enabled);
-  const displayUrl = `mylink.com/@${profile.username || "guest"}`;
+  const displayUrl = `mylink.com/${profile.username || "guest"}`;
 
   const handleCopy = () => {
     onCopyProfileUrl();

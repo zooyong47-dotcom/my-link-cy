@@ -342,7 +342,7 @@ export function ProfileEditForm({
             <span>
               내 프로필 주소:{" "}
               <strong className="font-mono text-neutral-strong1 font-semibold">
-                mylink.com/@{cleanUsername || "username"}
+                mylink.com/{cleanUsername || "username"}
               </strong>
             </span>
             {isUsernameChanged && cleanUsername.length >= 2 && (

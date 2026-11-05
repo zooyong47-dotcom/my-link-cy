@@ -20,6 +20,7 @@ import {
   Copy,
   CheckCircle2,
   Mail,
+  ExternalLink,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -51,13 +52,16 @@ export default function MyPage() {
     if (authError) showToast(authError, "error");
   }, [authError, showToast]);
 
-  const getOriginUrl = () => {
+  const getPersonalProfileUrl = () => {
     if (typeof window === "undefined") return "";
+    if (user && profile.username && profile.username !== "guest") {
+      return `${window.location.origin}/${encodeURIComponent(profile.username)}`;
+    }
     return window.location.origin;
   };
 
   const handleShare = async () => {
-    const shareUrl = getOriginUrl();
+    const shareUrl = getPersonalProfileUrl();
     if (typeof window !== "undefined" && navigator.share) {
       try {
         await navigator.share({
@@ -74,7 +78,7 @@ export default function MyPage() {
   };
 
   const handleCopyProfileUrl = () => {
-    copyToClipboard(getOriginUrl(), "전체 프로필 링크");
+    copyToClipboard(getPersonalProfileUrl(), "전체 프로필 링크");
   };
 
   const activeLinksCount = links.filter((l) => l.enabled).length;
@@ -214,9 +218,15 @@ export default function MyPage() {
                   {/* 주소 복사 + 요약 지표 */}
                   <div className="mt-4 pt-4 border-t border-neutral-weak1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center justify-between sm:justify-start gap-2 rounded-[10px] bg-neutral-weak px-3 py-1.5 min-w-0">
-                      <span className="text-xs font-mono text-neutral-strong1 truncate">
-                        mylink.com/@{profile.username}
-                      </span>
+                      <Link
+                        href={`/${encodeURIComponent(profile.username)}`}
+                        prefetch={false}
+                        className="inline-flex items-center gap-1 text-xs font-mono text-neutral-strong1 hover:text-primary-main hover:underline truncate"
+                        title="내 개인 페이지로 이동"
+                      >
+                        <span className="truncate">mylink.com/{profile.username}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </Link>
                       <button
                         type="button"
                         onClick={handleCopyProfileUrl}

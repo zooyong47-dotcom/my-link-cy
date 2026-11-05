@@ -52,8 +52,16 @@ export default function MyLinkPage() {
     if (authError) showToast(authError, "error");
   }, [authError, showToast]);
 
+  const getPersonalProfileUrl = () => {
+    if (typeof window === "undefined") return "";
+    if (user && profile.username && profile.username !== "guest") {
+      return `${window.location.origin}/${encodeURIComponent(profile.username)}`;
+    }
+    return window.location.href;
+  };
+
   const handleShare = async () => {
-    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const shareUrl = getPersonalProfileUrl();
     if (typeof window !== "undefined" && navigator.share) {
       try {
         await navigator.share({
@@ -74,8 +82,7 @@ export default function MyLinkPage() {
   };
 
   const handleCopyProfileUrl = () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    copyToClipboard(url, "전체 프로필 링크");
+    copyToClipboard(getPersonalProfileUrl(), "전체 프로필 링크");
   };
 
   const handleAddLinkClick = () => {
@@ -161,6 +168,7 @@ export default function MyLinkPage() {
           <WindowHeader
             user={user}
             username={profile.username}
+            linkToPersonalPage={!!user}
             onShare={handleShare}
             onOpenPreview={() => setIsPreviewOpen(true)}
           />

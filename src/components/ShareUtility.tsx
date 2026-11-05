@@ -1,16 +1,18 @@
 "use client";
 
 import React from "react";
-import { Share2, Copy, Send, Eye } from "lucide-react";
+import Link from "next/link";
+import { Share2, Copy, Send, Eye, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User } from "firebase/auth";
 import { getDisplayName } from "@/lib/utils";
 
 interface WindowHeaderProps {
-  user: User | null;
+  user?: User | null;
   username?: string;
   onShare: () => void;
   onOpenPreview?: () => void;
+  linkToPersonalPage?: boolean;
 }
 
 export function WindowHeader({
@@ -18,18 +20,34 @@ export function WindowHeader({
   username,
   onShare,
   onOpenPreview,
+  linkToPersonalPage = false,
 }: WindowHeaderProps) {
-  const handle = user
-    ? username && username !== "guest"
+  const handle =
+    username && username !== "guest"
       ? username
-      : getDisplayName(user)
-    : "guest";
+      : user
+      ? getDisplayName(user)
+      : "guest";
+
+  const canNavigatePersonal = linkToPersonalPage && handle !== "guest";
 
   return (
     <div className="bg-static-white border-b border-neutral-weak2 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
-      <span className="font-mono text-xs text-neutral-medium truncate">
-        mylink.com/@{handle}
-      </span>
+      {canNavigatePersonal ? (
+        <Link
+          href={`/${encodeURIComponent(handle)}`}
+          prefetch={false}
+          className="inline-flex items-center gap-1 font-mono text-xs text-neutral-medium hover:text-primary-main transition-colors truncate"
+          title="내 개인 페이지로 이동"
+        >
+          <span className="truncate">mylink.com/{handle}</span>
+          <ExternalLink className="w-3 h-3 shrink-0" />
+        </Link>
+      ) : (
+        <span className="font-mono text-xs text-neutral-medium truncate">
+          mylink.com/{handle}
+        </span>
+      )}
 
       <div className="flex items-center gap-1 shrink-0">
         {onOpenPreview && (
