@@ -172,18 +172,13 @@ export function LinkCard({
           <div className="flex items-center justify-between border-b border-neutral-weak2 pb-2">
             <span className="text-xs font-bold text-primary-main flex items-center gap-1.5">
               <Pencil className="w-3.5 h-3.5" />
-              링크 인라인 수정
+              링크 수정
             </span>
-            <div className="flex items-center gap-2 text-[11px]">
-              {formattedUpdateAt && (
-                <span className="text-neutral-medium font-mono hidden sm:inline">
-                  수정됨: {formattedUpdateAt}
-                </span>
-              )}
-              <span className="text-neutral-strong1">
-                파이어베이스 갱신
+            {formattedUpdateAt && (
+              <span className="text-[11px] text-neutral-medium font-mono">
+                {formattedUpdateAt}
               </span>
-            </div>
+            )}
           </div>
 
           {/* 제목 입력 영역 */}
@@ -365,17 +360,15 @@ export function LinkCard({
           </div>
         </div>
 
-        {/* 우측 액션 영역: 클릭수 + 항상 표시되는 [수정], [삭제] 버튼 + 이동 화살표 */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* 클릭 수 카운터 (있을 때만) */}
+        {/* 우측 액션 영역: 클릭수 + 수정/삭제 버튼 + 화살표 */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {typeof link.clicks === "number" && link.clicks > 0 && (
-            <span className="hidden md:flex items-center gap-1 text-[11px] font-mono text-neutral-medium bg-neutral-weak px-2 py-0.5 rounded-full border border-neutral-weak2 mr-0.5">
-              <MousePointerClick className="w-3 h-3 text-neutral-strong1" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-neutral-medium px-2 py-0.5 mr-0.5">
+              <MousePointerClick className="w-3 h-3" />
               {link.clicks.toLocaleString()}
             </span>
           )}
 
-          {/* ✏️ 항상 표시되는 수정 버튼 (아이콘 전용) */}
           {onUpdate && (
             <button
               type="button"
@@ -385,19 +378,18 @@ export function LinkCard({
                 e.stopPropagation();
                 setIsEditing(true);
               }}
-              className="w-8 h-8 rounded-[10px] flex items-center justify-center text-neutral-strong1 bg-neutral-weak hover:text-primary-main hover:bg-primary-weak hover:border-primary-weak2 border border-neutral-weak2 shadow-2xs transition-all cursor-pointer"
+              className="w-8 h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-primary-main hover:bg-primary-weak transition-colors cursor-pointer"
               title={
                 formattedUpdateAt
-                  ? `링크 수정 (수정일: ${formattedUpdateAt})`
+                  ? `링크 수정 (${formattedUpdateAt})`
                   : "링크 수정"
               }
               aria-label="링크 수정"
             >
-              <Pencil className="w-3.5 h-3.5 text-primary-main" />
+              <Pencil className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* 🗑️ 항상 표시되는 삭제 버튼 (아이콘 전용) */}
           {onRequestDelete && (
             <button
               type="button"
@@ -407,21 +399,20 @@ export function LinkCard({
                 e.stopPropagation();
                 onRequestDelete(link);
               }}
-              className="w-8 h-8 rounded-[10px] flex items-center justify-center text-neutral-strong1 bg-neutral-weak hover:text-accent-main hover:bg-accent-weak hover:border-accent-main/30 border border-neutral-weak2 shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed"
+              className="w-8 h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-accent-main hover:bg-accent-weak transition-colors cursor-pointer disabled:cursor-not-allowed"
               title="링크 삭제"
               aria-label="링크 삭제"
             >
               {isDeleting ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-accent-main" />
               ) : (
-                <Trash2 className="w-3.5 h-3.5 text-accent-main" />
+                <Trash2 className="w-3.5 h-3.5" />
               )}
             </button>
           )}
 
-          {/* 바로가기 Chevron 화살표 */}
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-neutral-medium group-hover:text-primary-main group-hover:translate-x-0.5 transition-all">
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
+          <div className="w-6 h-6 flex items-center justify-center text-neutral-medium group-hover:text-primary-main group-hover:translate-x-0.5 transition-all">
+            <ChevronRight className="w-4 h-4 stroke-[2]" />
           </div>
         </div>
       </Card>

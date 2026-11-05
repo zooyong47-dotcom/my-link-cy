@@ -14,6 +14,7 @@ import {
   updateDoc,
   getDocs,
   query,
+  where,
   orderBy,
   onSnapshot,
   serverTimestamp,
@@ -21,6 +22,17 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
+import {
+  normalizeUsername,
+  usernameFieldSchema,
+  updateProfileSchema,
+} from "@/lib/validations/profile";
+
+export interface UsernameCheckResult {
+  available: boolean;
+  isCurrentMine?: boolean;
+  message: string;
+}
 
 function parseTimestamp(val: any): number {
   if (!val) return 0;
@@ -59,15 +71,16 @@ export function useMyLinkData(user: User | null) {
   const [profile, setProfile] = useState<MyLinkProfile>(() => {
     return {
       ...MOCK_PROFILE,
-      displayName: "MyLink 허브",
-      username: "mylink",
-      bio: "Google 로그인 후 나만의 멀티링크를 간편하게 관리하고 실시간으로 동기화하세요 🚀",
+      displayName: "MyLink",
+      username: "guest",
+      bio: "나만의 링크를 한곳에 모아 간편하게 공유하는 멀티링크 허브",
       email: undefined,
     };
   });
 
   const [links, setLinks] = useState<CustomLink[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -75,6 +88,8 @@ export function useMyLinkData(user: User | null) {
 
   // 내부적으로 현재 관리 중인 링크 목록 ID Set 추적
   const linksMapRef = useRef<Map<string, CustomLink>>(new Map());
+  const userDocRefData = useRef<DocumentData | null>(null);
+  const profileSubDocRefData = useRef<DocumentData | null>(null);
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToastMessage(msg);
@@ -102,33 +117,135 @@ export function useMyLinkData(user: User | null) {
     if (!user) {
       // 로그아웃 상태: 링크 비우고 기본 게스트 프로필로 전환
       linksMapRef.current.clear();
+      userDocRefData.current = null;
+      profileSubDocRefData.current = null;
       setLinks([]);
       setIsLoaded(true);
+      setIsProfileLoaded(true);
       setIsSyncing(false);
       setProfile({
         ...MOCK_PROFILE,
         displayName: "MyLink",
         username: "guest",
-        bio: "Google 소셜 로그인 후 Firestore(users/{user.uid}/links) 개인 경로에 나만의 링크를 생성하고 실시간으로 관리하세요 🚀",
+        bio: "나만의 링크를 한곳에 모아 간편하게 공유하는 멀티링크 허브",
         avatarUrl: "/avatar.svg",
-        badge: "GOOGLE LOGIN",
+        badge: undefined,
         email: undefined,
       });
       return;
     }
 
-    // 로그인 상태: 유저 정보로 개인화
-    const userDisplayName = getDisplayName(user);
-    const userHandle = userDisplayName;
+    // 로그인 상태: 기본 유저 정보 설정 후 Firestore 실시간 구독으로 병합
+    const fallbackHandle = getDisplayName(user);
+    userDocRefData.current = null;
+    profileSubDocRefData.current = null;
+    setIsProfileLoaded(false);
+
+    const mergeAndApplyProfile = () => {
+      const uDoc = userDocRefData.current;
+      const pSubDoc = profileSubDocRefData.current;
+      const uProfileField =
+        uDoc?.profile && typeof uDoc.profile === "object" ? uDoc.profile : null;
+
+      // users/{uid}/profile 서브컬렉션과 users/{uid}.profile 필드 중 더 최신 데이터 우선 적용
+      const subTime = parseTimestamp(pSubDoc?.updatedAt);
+      const fieldTime = parseTimestamp(uProfileField?.updatedAt);
+      const primary =
+        pSubDoc && uProfileField
+          ? subTime >= fieldTime
+            ? pSubDoc
+            : uProfileField
+          : pSubDoc || uProfileField;
+      const secondary = primary === pSubDoc ? uProfileField : pSubDoc;
+
+      const resolvedUsername =
+        primary?.username ||
+        secondary?.username ||
+        uDoc?.username ||
+        fallbackHandle;
+
+      const resolvedDisplayName =
+        primary?.displayName ||
+        secondary?.displayName ||
+        uDoc?.displayName ||
+        fallbackHandle;
+
+      const resolvedBio =
+        primary?.bio !== undefined
+          ? primary.bio
+          : secondary?.bio !== undefined
+          ? secondary.bio
+          : uDoc?.bio !== undefined
+          ? uDoc.bio
+          : `${resolvedDisplayName}님의 링크 모음입니다.`;
+
+      setProfile((prev) => ({
+        ...prev,
+        username: String(resolvedUsername),
+        displayName: String(resolvedDisplayName),
+        bio: String(resolvedBio),
+        avatarUrl:
+          primary?.avatarUrl ||
+          uDoc?.photoURL ||
+          user.photoURL ||
+          "/avatar.svg",
+        email: user.email || uDoc?.email || undefined,
+        badge: "VERIFIED",
+      }));
+      setIsProfileLoaded(true);
+    };
+
     setProfile((prev) => ({
       ...prev,
-      displayName: userDisplayName,
-      username: userHandle,
+      displayName: fallbackHandle,
+      username: fallbackHandle,
       avatarUrl: user.photoURL || "/avatar.svg",
       email: user.email || undefined,
-      badge: "GOOGLE VERIFIED",
-      bio: `${userDisplayName}님의 실시간 맞춤 링크 허브입니다 ⚡`,
+      badge: "VERIFIED",
+      bio: `${fallbackHandle}님의 링크 모음입니다.`,
     }));
+
+    // 1) users/{user.uid} 문서 리스너
+    const unsubUserDoc = onSnapshot(
+      doc(db, "users", user.uid),
+      (docSnap) => {
+        userDocRefData.current = docSnap.exists() ? docSnap.data() : null;
+        mergeAndApplyProfile();
+      },
+      (err) => {
+        console.warn("User doc listener error:", err);
+        setIsProfileLoaded(true);
+      }
+    );
+
+    // 2) users/{user.uid}/profile 서브컬렉션 리스너
+    const unsubProfileCol = onSnapshot(
+      collection(db, "users", user.uid, "profile"),
+      (colSnap) => {
+        if (colSnap.empty) {
+          profileSubDocRefData.current = null;
+        } else {
+          // info 문서 우선 또는 updatedAt 최신 문서 선택
+          const sortedDocs = [...colSnap.docs].sort((a, b) => {
+            if (a.id === "info" && b.id !== "info") {
+              const tA = parseTimestamp(a.data().updatedAt);
+              const tB = parseTimestamp(b.data().updatedAt);
+              if (tA === tB) return -1;
+            }
+            return (
+              parseTimestamp(b.data().updatedAt) -
+              parseTimestamp(a.data().updatedAt)
+            );
+          });
+          profileSubDocRefData.current = sortedDocs[0]?.data() || null;
+        }
+        mergeAndApplyProfile();
+      },
+      (err) => {
+        console.warn("User profile subcollection listener error:", err);
+        setIsProfileLoaded(true);
+      }
+    );
 
     setIsSyncing(true);
     setIsLoaded(false);
@@ -137,7 +254,8 @@ export function useMyLinkData(user: User | null) {
     const userLinksCol = collection(db, "users", user.uid, "links");
     const userQuery = query(userLinksCol, orderBy("createdAt", "desc"));
 
-    const unsub = onSnapshot(
+    let fallbackUnsub: (() => void) | null = null;
+    const unsubLinks = onSnapshot(
       userQuery,
       (snapshot) => {
         const nextMap = new Map<string, CustomLink>();
@@ -150,18 +268,20 @@ export function useMyLinkData(user: User | null) {
       (error) => {
         console.warn("User links ordered listener fallback to plain listener:", error);
         // 복합 인덱스 미생성 시 일반 getDocs/리스너 대체
-        const fallbackUnsub = onSnapshot(userLinksCol, (snap) => {
+        fallbackUnsub = onSnapshot(userLinksCol, (snap) => {
           const nextMap = new Map<string, CustomLink>();
           snap.docs.forEach((d) => nextMap.set(d.id, docToCustomLink(d)));
           commitLinks(nextMap);
           setIsSyncing(false);
         });
-        return fallbackUnsub;
       }
     );
 
     return () => {
-      unsub();
+      unsubUserDoc();
+      unsubProfileCol();
+      unsubLinks();
+      if (fallbackUnsub) fallbackUnsub();
     };
   }, [user, commitLinks]);
 
@@ -458,10 +578,170 @@ export function useMyLinkData(user: User | null) {
     [showToast]
   );
 
+  // 🔍 username 중복 확인 핸들러 (대소문자 무시 비교 + 본인 제외)
+  const checkUsernameAvailability = useCallback(
+    async (rawUsername: string): Promise<UsernameCheckResult> => {
+      const clean = normalizeUsername(rawUsername);
+      const parsed = usernameFieldSchema.safeParse(clean);
+      if (!parsed.success) {
+        return {
+          available: false,
+          message:
+            parsed.error.issues[0]?.message ||
+            "올바른 username 형식을 입력해 주세요.",
+        };
+      }
+
+      const normalized = clean.toLowerCase();
+      const usersCol = collection(db, "users");
+
+      const queries = [
+        getDocs(query(usersCol, where("profile.usernameLower", "==", normalized))),
+        getDocs(query(usersCol, where("usernameLower", "==", normalized))),
+        getDocs(query(usersCol, where("displayName", "==", clean))),
+      ];
+      if (normalized !== clean) {
+        queries.push(
+          getDocs(query(usersCol, where("displayName", "==", normalized)))
+        );
+      }
+
+      const [byProfileField, byTopLower, ...legacySnaps] =
+        await Promise.all(queries);
+
+      const hasIndexedConflict =
+        byProfileField.docs.some((d) => d.id !== user?.uid) ||
+        byTopLower.docs.some((d) => d.id !== user?.uid);
+
+      const hasLegacyConflict = legacySnaps.some((snap) =>
+        snap.docs.some((d) => {
+          if (d.id === user?.uid) return false;
+          const data = d.data();
+          // 아직 별도 usernameLower가 설정되지 않은 기존 가입 유저의 기본 핸들과 충돌하는지 확인
+          return !data.profile?.usernameLower && !data.usernameLower;
+        })
+      );
+
+      if (hasIndexedConflict || hasLegacyConflict) {
+        return {
+          available: false,
+          message: "이미 사용 중인 username입니다. 다른 아이디를 입력해 주세요.",
+        };
+      }
+
+      const isCurrentMine =
+        !!user && profile.username.toLowerCase() === normalized;
+
+      return {
+        available: true,
+        isCurrentMine,
+        message: isCurrentMine
+          ? "현재 사용 중인 내 username입니다."
+          : "사용 가능한 username입니다!",
+      };
+    },
+    [user, profile.username]
+  );
+
+  // 👤 프로필 수정 핸들러: users/{userId}/profile 및 users/{userId} 동기화 저장
+  const updateProfile = useCallback(
+    async (input: { username: string; displayName: string; bio: string }) => {
+      if (!user) {
+        showToast("프로필을 수정하려면 먼저 로그인해 주세요.", "error");
+        throw new Error("로그인이 필요합니다.");
+      }
+
+      const cleanUsername = normalizeUsername(input.username);
+      const parsed = updateProfileSchema.safeParse({
+        username: cleanUsername,
+        displayName: input.displayName,
+        bio: input.bio,
+      });
+
+      if (!parsed.success) {
+        const errMsg =
+          parsed.error.issues[0]?.message || "입력값을 다시 확인해 주세요.";
+        showToast(errMsg, "error");
+        throw new Error(errMsg);
+      }
+
+      setIsSyncing(true);
+      try {
+        // 저장 직전 최종 중복 여부 재검증
+        const availability = await checkUsernameAvailability(cleanUsername);
+        if (!availability.available) {
+          showToast(availability.message, "error");
+          throw new Error(availability.message);
+        }
+
+        const cleanDisplayName = parsed.data.displayName;
+        const cleanBio = parsed.data.bio;
+        const usernameLower = cleanUsername.toLowerCase();
+
+        // 낙관적 로컬 상태 반영
+        setProfile((prev) => ({
+          ...prev,
+          username: cleanUsername,
+          displayName: cleanDisplayName,
+          bio: cleanBio,
+          updatedAt: new Date().toISOString(),
+        }));
+
+        const profilePayload = {
+          uid: user.uid,
+          username: cleanUsername,
+          usernameLower,
+          displayName: cleanDisplayName,
+          bio: cleanBio,
+          updatedAt: serverTimestamp(),
+        };
+
+        // users/{userId}/profile 서브컬렉션 및 users/{userId}.profile 필드 동시 업데이트
+        const results = await Promise.allSettled([
+          setDoc(
+            doc(db, "users", user.uid, "profile", "info"),
+            profilePayload,
+            { merge: true }
+          ),
+          setDoc(
+            doc(db, "users", user.uid),
+            {
+              uid: user.uid,
+              username: cleanUsername,
+              usernameLower,
+              displayName: cleanDisplayName,
+              bio: cleanBio,
+              profile: profilePayload,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          ),
+        ]);
+
+        const anySucceeded = results.some((r) => r.status === "fulfilled");
+        if (!anySucceeded) {
+          const rejected = results.find(
+            (r) => r.status === "rejected"
+          ) as PromiseRejectedResult | undefined;
+          throw rejected?.reason || new Error("프로필 저장에 실패했습니다.");
+        }
+
+        showToast("프로필 정보가 성공적으로 수정되었습니다! ✨", "success");
+      } catch (err: any) {
+        console.error("updateProfile error:", err);
+        throw err;
+      } finally {
+        setTimeout(() => setIsSyncing(false), 200);
+      }
+    },
+    [user, checkUsernameAvailability, showToast]
+  );
+
   return {
     profile,
     links,
     isLoaded,
+    isProfileLoaded,
     isSyncing,
     deletingId,
     toastMessage,
@@ -473,5 +753,7 @@ export function useMyLinkData(user: User | null) {
     refreshLinks,
     trackLinkClick,
     copyToClipboard,
+    checkUsernameAvailability,
+    updateProfile,
   };
 }

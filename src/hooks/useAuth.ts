@@ -9,9 +9,53 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { getDisplayName } from "@/lib/utils";
+
+async function syncUserRecord(targetUser: User) {
+  const userDocRef = doc(db, "users", targetUser.uid);
+  const defaultHandle = getDisplayName(targetUser);
+  const existingSnap = await getDoc(userDocRef);
+
+  if (existingSnap.exists()) {
+    const existing = existingSnap.data();
+    const patch: Record<string, any> = {
+      uid: targetUser.uid,
+      email: targetUser.email || "",
+      photoURL: targetUser.photoURL || "",
+      lastLoginAt: serverTimestamp(),
+    };
+
+    // 기존 유저 문서에 usernameLower 인덱스가 아직 없는 경우 초기값 보강 (커스텀 프로필은 덮어쓰지 않음)
+    if (!existing.usernameLower && !existing.profile?.usernameLower) {
+      const seedUsername =
+        existing.profile?.username ||
+        existing.username ||
+        existing.displayName ||
+        defaultHandle;
+      patch.username = seedUsername;
+      patch.usernameLower = String(seedUsername).toLowerCase();
+    }
+
+    await setDoc(userDocRef, patch, { merge: true });
+    return;
+  }
+
+  await setDoc(
+    userDocRef,
+    {
+      uid: targetUser.uid,
+      displayName: defaultHandle,
+      username: defaultHandle,
+      usernameLower: defaultHandle.toLowerCase(),
+      email: targetUser.email || "",
+      photoURL: targetUser.photoURL || "",
+      lastLoginAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 // 사용자에게 보여줄 Firebase Auth 에러 메시지 매핑
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -34,18 +78,8 @@ export function useAuth() {
       setUser(currentUser);
       if (currentUser) {
         try {
-          // Firestore users/{currentUser.uid} 경로에 유저 기본 정보 동기화 및 저장
-          await setDoc(
-            doc(db, "users", currentUser.uid),
-            {
-              uid: currentUser.uid,
-              displayName: getDisplayName(currentUser),
-              email: currentUser.email || "",
-              photoURL: currentUser.photoURL || "",
-              lastLoginAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
+          // Firestore users/{currentUser.uid} 경로에 유저 기본 정보 동기화 (커스텀 프로필 보존)
+          await syncUserRecord(currentUser);
         } catch (e) {
           console.warn("User profile sync error:", e);
         }
@@ -65,18 +99,8 @@ export function useAuth() {
       const result = await signInWithPopup(auth, provider);
       const signedUser = result.user;
 
-      // Firestore users/{signedUser.uid} 경로에 유저 기본 정보 기록
-      await setDoc(
-        doc(db, "users", signedUser.uid),
-        {
-          uid: signedUser.uid,
-          displayName: getDisplayName(signedUser),
-          email: signedUser.email || "",
-          photoURL: signedUser.photoURL || "",
-          lastLoginAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      // Firestore users/{signedUser.uid} 경로에 유저 기본 정보 기록 (커스텀 프로필 보존)
+      await syncUserRecord(signedUser);
 
       return signedUser;
     } catch (err: any) {
