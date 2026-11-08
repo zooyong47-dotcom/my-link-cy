@@ -266,7 +266,7 @@ export default function MyPage() {
                       프로필 수정
                     </h2>
                     <p className="text-xs text-neutral-strong1 mt-0.5">
-                      username(중복 확인), 이름, 소개글을 수정하여 내 프로필을 꾸며보세요.
+                      username(중복 확인) 및 소개글을 수정하여 내 프로필을 꾸며보세요.
                     </p>
                   </div>
                 </div>

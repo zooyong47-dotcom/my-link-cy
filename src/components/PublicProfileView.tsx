@@ -262,7 +262,6 @@ export function PublicProfileView({
                 src="/cover.svg"
                 alt={`${publicProfile.displayName} Cover`}
                 fill
-                priority
                 className="object-cover object-center opacity-35 mix-blend-overlay"
               />
             </div>

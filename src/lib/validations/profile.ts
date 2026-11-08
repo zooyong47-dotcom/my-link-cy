@@ -43,11 +43,6 @@ export const usernameFieldSchema = z
 
 export const updateProfileSchema = z.object({
   username: usernameFieldSchema,
-  displayName: z
-    .string()
-    .trim()
-    .min(1, "이름을 입력해 주세요.")
-    .max(30, "이름은 최대 30자까지 입력 가능합니다."),
   bio: z
     .string()
     .trim()

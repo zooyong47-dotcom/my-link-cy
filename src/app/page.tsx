@@ -179,7 +179,6 @@ export default function MyLinkPage() {
               src="/cover.svg"
               alt="MyLink Cover"
               fill
-              priority
               className="object-cover object-center opacity-35 mix-blend-overlay"
             />
           </div>

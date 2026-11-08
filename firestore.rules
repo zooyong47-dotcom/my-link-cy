@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. 상위 유저 문서: users/{userId}
+    // (빠뜨리기 쉬운 경로: 프로필 편집 시 username/displayName/bio 동기화, 로그인 시 유저 생성, username 중복 확인 및 /[displayname] 공개 조회에 사용)
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. 링크 경로: users/{userId}/links/{linkId}
+    match /users/{userId}/links/{linkId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 3. 프로필 경로: users/{userId}/profile/{docId}
+    // (프로필 편집 시 users/{userId}/profile/info 문서 저장 및 조회에 사용)
+    match /users/{userId}/profile/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

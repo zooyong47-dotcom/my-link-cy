@@ -60,7 +60,6 @@ export interface UpdateLinkPayload {
 
 export interface UpdateProfilePayload {
   username: string;
-  displayName: string;
   bio: string;
 }
 
@@ -546,14 +545,12 @@ export async function saveUserProfile(
   currentUsername?: string
 ): Promise<{
   username: string;
-  displayName: string;
   bio: string;
   updatedAt: string;
 }> {
   const cleanUsername = normalizeUsername(input.username);
   const parsed = updateProfileSchema.safeParse({
     username: cleanUsername,
-    displayName: input.displayName,
     bio: input.bio,
   });
 
@@ -572,15 +569,13 @@ export async function saveUserProfile(
     throw new Error(availability.message);
   }
 
-  const cleanDisplayName = parsed.data.displayName;
   const cleanBio = parsed.data.bio;
   const usernameLower = cleanUsername.toLowerCase();
 
-  const profilePayload = {
+  const profilePayload: Record<string, any> = {
     uid,
     username: cleanUsername,
     usernameLower,
-    displayName: cleanDisplayName,
     bio: cleanBio,
     updatedAt: serverTimestamp(),
   };
@@ -595,7 +590,6 @@ export async function saveUserProfile(
         uid,
         username: cleanUsername,
         usernameLower,
-        displayName: cleanDisplayName,
         bio: cleanBio,
         profile: profilePayload,
         updatedAt: serverTimestamp(),
@@ -614,7 +608,6 @@ export async function saveUserProfile(
 
   return {
     username: cleanUsername,
-    displayName: cleanDisplayName,
     bio: cleanBio,
     updatedAt: new Date().toISOString(),
   };

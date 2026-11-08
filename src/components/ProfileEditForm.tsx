@@ -61,7 +61,6 @@ export function ProfileEditForm({
     mode: "onTouched",
     defaultValues: {
       username: profile.username === "guest" ? "" : profile.username,
-      displayName: profile.displayName === "MyLink" ? "" : profile.displayName,
       bio: profile.bio || "",
     },
   });
@@ -82,8 +81,6 @@ export function ProfileEditForm({
     if (!initializedAfterLoadRef.current || !isDirty) {
       reset({
         username: profile.username === "guest" ? "" : profile.username,
-        displayName:
-          profile.displayName === "MyLink" ? "" : profile.displayName,
         bio: profile.bio || "",
       });
       initializedAfterLoadRef.current = true;
@@ -91,14 +88,12 @@ export function ProfileEditForm({
   }, [
     isProfileLoaded,
     profile.username,
-    profile.displayName,
     profile.bio,
     isDirty,
     reset,
   ]);
 
   const watchedUsername = watch("username") || "";
-  const watchedDisplayName = watch("displayName") || "";
   const watchedBio = watch("bio") || "";
 
   const cleanUsername = normalizeUsername(watchedUsername);
@@ -169,7 +164,6 @@ export function ProfileEditForm({
   const handleResetForm = () => {
     reset({
       username: profile.username === "guest" ? "" : profile.username,
-      displayName: profile.displayName === "MyLink" ? "" : profile.displayName,
       bio: profile.bio || "",
     });
     setCheckState("idle");
@@ -194,7 +188,6 @@ export function ProfileEditForm({
       setIsSubmitting(true);
       const savedValues = {
         username: normalizeUsername(data.username),
-        displayName: data.displayName.trim(),
         bio: data.bio.trim(),
       };
 
@@ -354,50 +347,7 @@ export function ProfileEditForm({
         )}
       </div>
 
-      {/* 2. 이름 (displayName) 입력 */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <label
-            htmlFor="profile-displayName"
-            className="text-xs font-bold text-neutral-main flex items-center gap-1 cursor-pointer"
-          >
-            <span>이름</span>
-            <span className="text-accent-main">*</span>
-          </label>
-          <span
-            className={`text-[11px] font-mono ${
-              watchedDisplayName.trim().length > 30
-                ? "text-accent-main font-bold"
-                : "text-neutral-medium"
-            }`}
-          >
-            {watchedDisplayName.trim().length}/30
-          </span>
-        </div>
-
-        <input
-          id="profile-displayName"
-          type="text"
-          maxLength={35}
-          {...register("displayName")}
-          placeholder="프로필에 표시될 이름을 입력해 주세요"
-          aria-invalid={!!errors.displayName}
-          className={`w-full px-3.5 py-2.5 rounded-[12px] border text-sm text-neutral-main placeholder:text-neutral-weak4 focus:outline-none transition-all ${
-            errors.displayName
-              ? "border-accent-main bg-accent-weak/20 focus:ring-2 focus:ring-accent-main/20"
-              : "border-neutral-weak2 bg-neutral-weak/40 focus:border-primary-main focus:bg-static-white focus:ring-2 focus:ring-primary-main/10"
-          }`}
-        />
-
-        {errors.displayName && (
-          <p className="text-xs text-accent-main flex items-center gap-1 mt-1 font-medium">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{errors.displayName.message}</span>
-          </p>
-        )}
-      </div>
-
-      {/* 3. 소개글 (bio) 입력 */}
+      {/* 2. 소개글 (bio) 입력 */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <label

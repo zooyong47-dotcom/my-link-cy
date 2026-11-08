@@ -252,7 +252,6 @@ export function useMyLinkData(user: User | null) {
       const optimisticProfile: MyLinkProfile = {
         ...baseProfile,
         username: normalizeUsername(input.username),
-        displayName: input.displayName.trim(),
         bio: input.bio.trim(),
         updatedAt: new Date().toISOString(),
       };
@@ -270,7 +269,6 @@ export function useMyLinkData(user: User | null) {
         (prev) => ({
           ...(prev ?? profile),
           username: saved.username,
-          displayName: saved.displayName,
           bio: saved.bio,
           updatedAt: saved.updatedAt,
         })

@@ -30,7 +30,6 @@ export function ProfileHeader({
           alt={profile.displayName || "프로필"}
           width={96}
           height={96}
-          priority
           unoptimized
           className="w-full h-full object-cover rounded-[20px]"
         />
