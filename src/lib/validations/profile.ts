@@ -8,6 +8,7 @@ export const RESERVED_USERNAMES = new Set([
   "system",
   "api",
   "mypage",
+  "stats",
   "login",
   "logout",
   "settings",

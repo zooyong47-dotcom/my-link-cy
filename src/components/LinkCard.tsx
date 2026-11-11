@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createLinkSchema, CreateLinkInput } from "@/lib/validations/link";
 import { CustomLink } from "@/types/mylink";
+import { getSafeHref } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,17 +103,7 @@ export function LinkCard({
     }
   };
 
-  const safeHref = (() => {
-    const trimmed = link.url.trim();
-    if (
-      trimmed.startsWith("http://") ||
-      trimmed.startsWith("https://") ||
-      trimmed.startsWith("mailto:")
-    ) {
-      return trimmed;
-    }
-    return `https://${trimmed}`;
-  })();
+  const safeHref = getSafeHref(link.url);
 
   const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if ((e.target as HTMLElement).closest("button")) return;

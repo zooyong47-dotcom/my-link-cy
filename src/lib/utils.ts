@@ -14,3 +14,23 @@ export function getDisplayName(user: { email?: string | null; uid: string }): st
   const prefix = user.email?.split("@")[0]?.trim();
   return prefix || user.uid.slice(0, 8);
 }
+
+/**
+ * 안전한 외부 이동용 URL(http/https/mailto)을 반환합니다.
+ */
+export function getSafeHref(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "#";
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+    return "#";
+  }
+  if (
+    lower.startsWith("http://") ||
+    lower.startsWith("https://") ||
+    lower.startsWith("mailto:")
+  ) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}

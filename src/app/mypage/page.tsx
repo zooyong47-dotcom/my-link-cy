@@ -253,18 +253,19 @@ export default function MyPage() {
                           {activeLinksCount}개
                         </strong>
                       </span>
-                      <span
+                      <Link
+                        href="/stats"
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-mono font-semibold tabular-nums transition-colors ${
                           totalClicks > 0
-                            ? "bg-primary-weak/80 text-primary-main border-primary-weak2/80"
-                            : "bg-neutral-weak text-neutral-strong1 border-neutral-weak2"
+                            ? "bg-primary-weak/80 text-primary-main border-primary-weak2/80 hover:bg-primary-weak"
+                            : "bg-neutral-weak text-neutral-strong1 border-neutral-weak2 hover:border-primary-weak2 hover:text-primary-main"
                         }`}
-                        title={`총 조회수 ${totalClicks.toLocaleString("ko-KR")}`}
-                        aria-label={`총 조회수 ${totalClicks.toLocaleString("ko-KR")}`}
+                        title={`총 조회수 ${totalClicks.toLocaleString("ko-KR")} · 통계 페이지 보기`}
+                        aria-label={`총 조회수 ${totalClicks.toLocaleString("ko-KR")} · 통계 페이지 보기`}
                       >
                         <MousePointerClick className="w-3 h-3 shrink-0" />
                         <span>{totalClicks.toLocaleString("ko-KR")}</span>
-                      </span>
+                      </Link>
                     </div>
                   </div>
                 </div>

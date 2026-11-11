@@ -19,6 +19,7 @@ import {
   UserPen,
   Globe,
   ExternalLink,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/icons";
@@ -88,6 +89,7 @@ export function AppHeader({
     decodedPathname = pathname || "/";
   }
   const isMyPage = pathname === "/mypage";
+  const isStatsPage = pathname === "/stats";
 
   const displayName = user
     ? profile?.displayName && profile.displayName !== "MyLink"
@@ -295,7 +297,7 @@ export function AppHeader({
 
                       <Menu.Separator className="my-1 h-px bg-neutral-weak2" />
 
-                      {/* 4. 개인 페이지 · 마이 페이지 · 공유 메뉴 */}
+                      {/* 4. 개인 페이지 · 마이 페이지 · 통계 · 공유 메뉴 */}
                       <Menu.Group>
                         <Menu.Item
                           className={menuItemClass}
@@ -314,6 +316,19 @@ export function AppHeader({
                         >
                           <UserCog className="w-4 h-4 text-primary-main shrink-0" />
                           <span>마이 페이지 (프로필 관리)</span>
+                        </Menu.Item>
+
+                        <Menu.Item
+                          className={`${menuItemClass} ${
+                            isStatsPage ? "bg-primary-weak/70 text-primary-main font-semibold" : ""
+                          }`}
+                          render={<Link href="/stats" />}
+                        >
+                          <BarChart3 className="w-4 h-4 text-primary-main shrink-0" />
+                          <span className="flex-1">통계 페이지</span>
+                          <span className="text-[11px] font-mono text-neutral-medium tabular-nums">
+                            {totalClicks.toLocaleString("ko-KR")}회
+                          </span>
                         </Menu.Item>
 
                         {pathname !== "/" && (
