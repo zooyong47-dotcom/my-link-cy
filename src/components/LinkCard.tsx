@@ -10,10 +10,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Globe,
-  BookOpen,
-  FileText,
-  MessageCircle,
   ChevronRight,
   MousePointerClick,
   Pencil,
@@ -24,7 +20,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { GithubIcon, FigmaIcon, YoutubeIcon } from "@/components/icons";
+import { LinkIcon } from "@/components/LinkIcon";
 
 interface LinkCardProps {
   link: CustomLink;
@@ -81,27 +77,6 @@ export function LinkCard({
       }, 50);
     }
   }, [isEditing, link.title, link.url, reset, setFocus]);
-
-  const renderIcon = (iconName?: string) => {
-    switch (iconName) {
-      case "globe":
-        return <Globe className="w-5 h-5 text-primary-main" />;
-      case "github":
-        return <GithubIcon className="w-5 h-5 text-neutral-main" />;
-      case "book-open":
-        return <BookOpen className="w-5 h-5 text-primary-main" />;
-      case "file-text":
-        return <FileText className="w-5 h-5 text-primary-main" />;
-      case "figma":
-        return <FigmaIcon className="w-5 h-5 text-neutral-main" />;
-      case "message-circle":
-        return <MessageCircle className="w-5 h-5 text-primary-main" />;
-      case "youtube":
-        return <YoutubeIcon className="w-5 h-5 text-accent-main" />;
-      default:
-        return <Globe className="w-5 h-5 text-primary-main" />;
-    }
-  };
 
   const safeHref = getSafeHref(link.url);
 
@@ -350,7 +325,7 @@ export function LinkCard({
         <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1 mr-2">
           {/* 아이콘 프레임 */}
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-[12px] bg-neutral-weak flex items-center justify-center shrink-0 border border-neutral-weak2 group-hover:bg-primary-weak group-hover:border-primary-weak2 transition-colors">
-            {renderIcon(link.icon)}
+            <LinkIcon icon={link.icon} />
           </div>
 
           {/* 링크 타이틀 및 설명 */}
