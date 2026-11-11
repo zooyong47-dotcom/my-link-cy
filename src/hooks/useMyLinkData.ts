@@ -19,13 +19,13 @@ import {
   createUserLink,
   patchUserLink,
   removeUserLink,
-  incrementUserLinkClick,
   saveUserProfile,
   CreateLinkPayload,
   UpdateLinkPayload,
   UpdateProfilePayload,
   UsernameCheckResult,
 } from "@/lib/queries/mylink";
+import { useLinkClickMutation } from "@/hooks/useLinkClickMutation";
 
 export type { UsernameCheckResult };
 
@@ -56,11 +56,14 @@ export function useMyLinkData(user: User | null) {
     enabled: !!user,
   });
 
-  // 2) 링크 목록 단발 조회 (useQuery)
+  // 2) 링크 목록 조회 (useQuery - 페이지 진입/탭 복귀 시 최신 클릭수 동기화)
   const linksQuery = useQuery({
     queryKey: myLinkKeys.links(uid),
     queryFn: () => fetchUserLinks(uid),
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const profile: MyLinkProfile = !user
@@ -212,21 +215,11 @@ export function useMyLinkData(user: User | null) {
   });
 
   // 6) 링크 클릭수 증가 (useMutation)
-  const clickLinkMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      if (!user) return;
-      await incrementUserLinkClick(user.uid, linkId);
-    },
-    onMutate: async (linkId) => {
-      queryClient.setQueryData<CustomLink[]>(myLinkKeys.links(uid), (old) =>
-        old
-          ? old.map((link) =>
-              link.id === linkId
-                ? { ...link, clicks: (link.clicks || 0) + 1 }
-                : link
-            )
-          : old
-      );
+  const clickLinkMutation = useLinkClickMutation({
+    uid,
+    onError: (err) => {
+      console.error("clickLink error:", err);
+      showToast("클릭수 저장에 실패했습니다.", "error");
     },
   });
 

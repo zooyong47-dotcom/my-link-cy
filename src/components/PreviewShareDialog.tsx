@@ -197,6 +197,7 @@ export function PreviewShareDialog({
                     <LinkCard
                       key={link.id}
                       link={link}
+                      showClicks={false}
                       onLinkClick={onLinkClick}
                     />
                   ))

@@ -34,6 +34,7 @@ interface LinkCardProps {
     data: { title: string; url: string; subtitle?: string; badge?: string }
   ) => Promise<any> | void;
   isDeleting?: boolean;
+  showClicks?: boolean;
 }
 
 export function LinkCard({
@@ -42,6 +43,7 @@ export function LinkCard({
   onRequestDelete,
   onUpdate,
   isDeleting = false,
+  showClicks = true,
 }: LinkCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -100,7 +102,28 @@ export function LinkCard({
     }
   };
 
-  const handleCardClick = () => {
+  const safeHref = (() => {
+    const trimmed = link.url.trim();
+    if (
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      trimmed.startsWith("mailto:")
+    ) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
+  })();
+
+  const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (onLinkClick) {
+      onLinkClick(link.id);
+    }
+  };
+
+  const handleCardAuxClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 1) return;
+    if ((e.target as HTMLElement).closest("button")) return;
     if (onLinkClick) {
       onLinkClick(link.id);
     }
@@ -142,6 +165,12 @@ export function LinkCard({
   };
 
   const isHighlighted = link.highlight;
+  const clickCount =
+    typeof link.clicks === "number" &&
+    Number.isFinite(link.clicks) &&
+    link.clicks >= 0
+      ? link.clicks
+      : 0;
   const isTitleValid = !errors.title && currentTitle.trim().length >= 2;
   const isUrlValid = !errors.url && currentUrl.trim().length > 0;
 
@@ -307,13 +336,14 @@ export function LinkCard({
     );
   }
 
-  // 🔗 2. 일반 링크 카드 렌더링 (수정/삭제 버튼 항상 표시)
+  // 🔗 2. 일반 링크 카드 렌더링 (클릭수 + 수정/삭제 버튼 표시)
   return (
     <a
-      href={link.url}
-      target={link.url.startsWith("http") ? "_blank" : "_self"}
+      href={safeHref}
+      target={safeHref.startsWith("http") ? "_blank" : "_self"}
       rel="noopener noreferrer"
       onClick={handleCardClick}
+      onAuxClick={handleCardAuxClick}
       className={`block group cursor-pointer focus-visible:outline-none transition-opacity duration-200 ${
         isDeleting ? "opacity-50 pointer-events-none" : ""
       }`}
@@ -362,10 +392,18 @@ export function LinkCard({
 
         {/* 우측 액션 영역: 클릭수 + 수정/삭제 버튼 + 화살표 */}
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          {typeof link.clicks === "number" && link.clicks > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-neutral-medium px-2 py-0.5 mr-0.5">
-              <MousePointerClick className="w-3 h-3" />
-              {link.clicks.toLocaleString()}
+          {showClicks && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mr-0.5 text-[11px] font-mono font-semibold tabular-nums shrink-0 transition-colors ${
+                clickCount > 0
+                  ? "bg-primary-weak/80 text-primary-main border-primary-weak2/80"
+                  : "bg-neutral-weak text-neutral-strong1 border-neutral-weak2"
+              }`}
+              title={`클릭수 ${clickCount.toLocaleString("ko-KR")}회`}
+              aria-label={`클릭수 ${clickCount.toLocaleString("ko-KR")}회`}
+            >
+              <MousePointerClick className="w-3 h-3 shrink-0" />
+              <span>{clickCount.toLocaleString("ko-KR")}</span>
             </span>
           )}
 
@@ -378,7 +416,7 @@ export function LinkCard({
                 e.stopPropagation();
                 setIsEditing(true);
               }}
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-primary-main hover:bg-primary-weak transition-colors cursor-pointer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-primary-main hover:bg-primary-weak transition-colors cursor-pointer"
               title={
                 formattedUpdateAt
                   ? `링크 수정 (${formattedUpdateAt})`
@@ -399,7 +437,7 @@ export function LinkCard({
                 e.stopPropagation();
                 onRequestDelete(link);
               }}
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-accent-main hover:bg-accent-weak transition-colors cursor-pointer disabled:cursor-not-allowed"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-[9px] flex items-center justify-center text-neutral-medium hover:text-accent-main hover:bg-accent-weak transition-colors cursor-pointer disabled:cursor-not-allowed"
               title="링크 삭제"
               aria-label="링크 삭제"
             >
@@ -411,7 +449,7 @@ export function LinkCard({
             </button>
           )}
 
-          <div className="w-6 h-6 flex items-center justify-center text-neutral-medium group-hover:text-primary-main group-hover:translate-x-0.5 transition-all">
+          <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-neutral-medium group-hover:text-primary-main group-hover:translate-x-0.5 transition-all">
             <ChevronRight className="w-4 h-4 stroke-[2]" />
           </div>
         </div>

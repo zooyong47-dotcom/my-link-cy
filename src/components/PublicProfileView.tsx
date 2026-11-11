@@ -3,18 +3,14 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyLinkData } from "@/hooks/useMyLinkData";
+import { useLinkClickMutation } from "@/hooks/useLinkClickMutation";
 import {
   myLinkKeys,
   fetchUserProfileByUid,
   fetchUserLinks,
-  incrementUserLinkClick,
 } from "@/lib/queries/mylink";
 import { AppHeader } from "@/components/AppHeader";
 import { ProfileHeader } from "@/components/ProfileHeader";
@@ -42,7 +38,6 @@ export function PublicProfileView({
   initialLinks,
   serverFetchedAt,
 }: PublicProfileViewProps) {
-  const queryClient = useQueryClient();
   const {
     user,
     loading: authLoading,
@@ -80,6 +75,7 @@ export function PublicProfileView({
     queryFn: () => fetchUserLinks(targetUid),
     initialData: initialLinks,
     initialDataUpdatedAt: serverFetchedAt,
+    refetchOnWindowFocus: true,
   });
 
   const publicProfile = targetProfileQuery.data ?? initialProfile;
@@ -89,25 +85,13 @@ export function PublicProfileView({
   const isRefreshing =
     targetProfileQuery.isFetching || targetLinksQuery.isFetching;
 
-  const clickPublicLinkMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      await incrementUserLinkClick(targetUid, linkId);
-    },
-    onMutate: async (linkId) => {
-      queryClient.setQueryData<CustomLink[]>(
-        myLinkKeys.links(targetUid),
-        (old) =>
-          old
-            ? old.map((link) =>
-                link.id === linkId
-                  ? { ...link, clicks: (link.clicks || 0) + 1 }
-                  : link
-              )
-            : old
-      );
-    },
-    onError: () => {
-      // 비소유자 방문자의 클릭 집계가 권한 규칙으로 제한될 경우 조용히 무시
+  const clickPublicLinkMutation = useLinkClickMutation({
+    uid: targetUid,
+    onError: (err) => {
+      console.warn("public link click save failed:", err);
+      if (isOwner) {
+        showToast("클릭수 저장에 실패했습니다.", "error");
+      }
     },
   });
 
@@ -318,6 +302,7 @@ export function PublicProfileView({
                       <LinkCard
                         key={link.id}
                         link={link}
+                        showClicks={false}
                         onLinkClick={(linkId) =>
                           clickPublicLinkMutation.mutate(linkId)
                         }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyLinkData } from "@/hooks/useMyLinkData";
 import { AppHeader } from "@/components/AppHeader";
+import { LinkCard } from "@/components/LinkCard";
 import { ProfileEditForm } from "@/components/ProfileEditForm";
 import { PreviewShareDialog } from "@/components/PreviewShareDialog";
 import { LoggedOutGuide } from "@/components/LoggedOutGuide";
@@ -21,6 +22,11 @@ import {
   CheckCircle2,
   Mail,
   ExternalLink,
+  MousePointerClick,
+  RotateCw,
+  Link2,
+  Plus,
+  Loader2,
 } from "lucide-react";
 
 export default function MyPage() {
@@ -36,10 +42,13 @@ export default function MyPage() {
   const {
     profile,
     links,
+    isLoaded,
     isProfileLoaded,
+    isSyncing,
     toastMessage,
     toastType,
     showToast,
+    refreshLinks,
     trackLinkClick,
     copyToClipboard,
     checkUsernameAvailability,
@@ -237,25 +246,112 @@ export default function MyPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-neutral-medium shrink-0">
+                    <div className="flex items-center gap-3 text-xs text-neutral-medium shrink-0">
                       <span>
                         활성 링크{" "}
                         <strong className="text-neutral-main font-bold">
                           {activeLinksCount}개
                         </strong>
                       </span>
-                      <span>
-                        총 클릭{" "}
-                        <strong className="text-neutral-main font-bold">
-                          {totalClicks.toLocaleString("ko-KR")}회
-                        </strong>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-mono font-semibold tabular-nums transition-colors ${
+                          totalClicks > 0
+                            ? "bg-primary-weak/80 text-primary-main border-primary-weak2/80"
+                            : "bg-neutral-weak text-neutral-strong1 border-neutral-weak2"
+                        }`}
+                        title={`총 조회수 ${totalClicks.toLocaleString("ko-KR")}`}
+                        aria-label={`총 조회수 ${totalClicks.toLocaleString("ko-KR")}`}
+                      >
+                        <MousePointerClick className="w-3 h-3 shrink-0" />
+                        <span>{totalClicks.toLocaleString("ko-KR")}</span>
                       </span>
                     </div>
                   </div>
                 </div>
               </Card>
 
-              {/* 2. 프로필 수정 카드 */}
+              {/* 2. 내 링크 조회수 카드 */}
+              <Card className="w-full bg-static-white border border-neutral-weak2 rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 shadow-nol-1">
+                <div className="flex items-center justify-between gap-2 mb-4 pb-3.5 border-b border-neutral-weak1">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-9 h-9 rounded-[12px] bg-primary-weak text-primary-main flex items-center justify-center shrink-0">
+                      <Link2 className="w-4 h-4" />
+                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold tracking-tight text-neutral-main truncate">
+                        내 링크
+                      </h2>
+                      <Badge variant="primary" className="text-[11px] px-2 py-0 h-5 shrink-0">
+                        {links.length}
+                      </Badge>
+                      {isSyncing && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-main shrink-0" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => refreshLinks()}
+                      disabled={isSyncing}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-neutral-medium hover:text-primary-main hover:bg-neutral-weak1 transition-colors cursor-pointer disabled:opacity-50"
+                      title="새로고침"
+                      aria-label="새로고침"
+                    >
+                      <RotateCw
+                        className={`w-3.5 h-3.5 ${
+                          isSyncing ? "animate-spin text-primary-main" : ""
+                        }`}
+                      />
+                    </button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      render={<Link href="/" />}
+                      className="h-8 text-xs px-3 rounded-full font-semibold gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-primary-main" />
+                      <span>링크 관리</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  {!isLoaded ? (
+                    <div className="space-y-2.5 animate-pulse">
+                      <div className="h-16 rounded-[16px] bg-neutral-weak2/60" />
+                      <div className="h-16 rounded-[16px] bg-neutral-weak2/60" />
+                    </div>
+                  ) : links.length > 0 ? (
+                    links.map((link) => (
+                      <LinkCard
+                        key={link.id}
+                        link={link}
+                        onLinkClick={trackLinkClick}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-8 px-4 rounded-[16px] border border-dashed border-neutral-weak2 bg-neutral-weak/40 space-y-3">
+                      <p className="text-xs sm:text-sm text-neutral-medium">
+                        등록된 링크가 없습니다.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        render={<Link href="/" />}
+                        className="rounded-full text-xs font-bold gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>새 링크 추가하러 가기</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* 3. 프로필 수정 카드 */}
               <Card className="w-full bg-static-white border border-neutral-weak2 rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 shadow-nol-1">
                 <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-neutral-weak1">
                   <span className="w-9 h-9 rounded-[12px] bg-primary-weak text-primary-main flex items-center justify-center shrink-0">

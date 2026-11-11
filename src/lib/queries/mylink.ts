@@ -67,9 +67,26 @@ export const myLinkKeys = {
   all: ["mylink"] as const,
   profile: (uid: string) => ["mylink", "profile", uid] as const,
   links: (uid: string) => ["mylink", "links", uid] as const,
+  clickLink: (uid: string) => ["mylink", "click-link", uid] as const,
   usernameCheck: (uid: string | undefined, normalized: string) =>
     ["mylink", "username-check", uid ?? "anon", normalized] as const,
 };
+
+/**
+ * 캐시된 링크 배열에서 특정 링크의 클릭수를 delta만큼 조정합니다.
+ */
+export function adjustLinkClickInList(
+  links: CustomLink[] | undefined,
+  linkId: string,
+  delta: number
+): CustomLink[] | undefined {
+  if (!links) return links;
+  return links.map((link) =>
+    link.id === linkId
+      ? { ...link, clicks: Math.max(0, (link.clicks || 0) + delta) }
+      : link
+  );
+}
 
 export function parseTimestamp(val: any): number {
   if (!val) return 0;
@@ -124,7 +141,10 @@ function docToCustomLink(
     category: data.category || undefined,
     enabled: data.enabled !== undefined ? data.enabled : true,
     highlight: !!data.highlight,
-    clicks: data.clicks || 0,
+    clicks:
+      typeof data.clicks === "number" && Number.isFinite(data.clicks) && data.clicks >= 0
+        ? data.clicks
+        : 0,
     icon: data.icon || "globe",
     bgColor: data.bgColor || undefined,
     badgeColor: data.badgeColor || undefined,
@@ -530,6 +550,7 @@ export async function incrementUserLinkClick(
   uid: string,
   linkId: string
 ): Promise<void> {
+  if (!uid || !linkId) return;
   const docRef = doc(db, "users", uid, "links", linkId);
   await updateDoc(docRef, {
     clicks: increment(1),

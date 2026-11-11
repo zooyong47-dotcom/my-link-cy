@@ -11,9 +11,19 @@ service cloud.firestore {
     }
 
     // 2. 링크 경로: users/{userId}/links/{linkId}
+    // (링크 추가/수정/삭제는 소유자만 허용, 공개 방문자의 클릭수 +1 증가는 clicks 필드 단일 변경에 한해 허용)
     match /users/{userId}/links/{linkId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create, delete: if request.auth != null && request.auth.uid == userId;
+      allow update: if (request.auth != null && request.auth.uid == userId)
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks'])
+          && request.resource.data.clicks is number
+          && (
+            (!(resource.data.get('clicks', null) is number) && request.resource.data.clicks == 1)
+            || (resource.data.get('clicks', null) is number && request.resource.data.clicks == resource.data.clicks + 1)
+          )
+        );
     }
 
     // 3. 프로필 경로: users/{userId}/profile/{docId}
