@@ -22,28 +22,62 @@ export async function generateMetadata({
 
   if (!userData) {
     return {
-      title: "프로필을 찾을 수 없습니다 | MyLink",
+      title: "프로필을 찾을 수 없습니다",
       description: "요청하신 사용자의 프로필 페이지를 찾을 수 없습니다.",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
   const { profile } = userData;
-  const title = `${profile.displayName} (@${profile.username}) | MyLink`;
-  const description =
-    profile.bio || `${profile.displayName}님의 MyLink 프로필 및 링크 모음입니다.`;
+  const titleString = `${profile.displayName} (@${profile.username})`;
+  const description = profile.bio
+    ? profile.bio.replace(/\r?\n+/g, " ").trim()
+    : `${profile.displayName}님의 MyLink 프로필 및 추천 링크 모음입니다.`;
+
+  const profileUrl = `/${encodeURIComponent(profile.username || displayname)}`;
+  const ogImageUrl = `/${encodeURIComponent(profile.username || displayname)}/opengraph-image`;
 
   return {
-    title,
+    title: titleString,
     description,
+    keywords: [
+      profile.displayName,
+      `@${profile.username}`,
+      profile.username,
+      "프로필",
+      "프로필 링크",
+      "바이오링크",
+      "포트폴리오",
+      "MyLink",
+      "마이링크",
+    ],
+    alternates: {
+      canonical: profileUrl,
+    },
     openGraph: {
-      title,
-      description,
       type: "profile",
+      username: profile.username,
+      title: `${titleString} | MyLink`,
+      description,
+      url: profileUrl,
+      siteName: "MyLink",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${profile.displayName}님의 MyLink 프로필 카드`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: `${titleString} | MyLink`,
       description,
+      images: [ogImageUrl],
     },
   };
 }
@@ -58,12 +92,45 @@ export default async function DisplayNameProfilePage({
     notFound();
   }
 
+  const siteUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+  const canonicalUrl = `${siteUrl}/${encodeURIComponent(userData.profile.username || displayname)}`;
+  const socialUrls = (userData.profile.socials || [])
+    .filter((s) => s.enabled && s.url)
+    .map((s) => s.url);
+
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    mainEntity: {
+      "@type": "Person",
+      name: userData.profile.displayName,
+      alternateName: userData.profile.username,
+      description: userData.profile.bio,
+      image: userData.profile.avatarUrl
+        ? userData.profile.avatarUrl.startsWith("http")
+          ? userData.profile.avatarUrl
+          : `${siteUrl}${userData.profile.avatarUrl.startsWith("/") ? "" : "/"}${userData.profile.avatarUrl}`
+        : undefined,
+      url: canonicalUrl,
+      ...(socialUrls.length > 0 ? { sameAs: socialUrls } : {}),
+    },
+  };
+
   return (
-    <PublicProfileView
-      targetUid={userData.uid}
-      initialProfile={userData.profile}
-      initialLinks={userData.links}
-      serverFetchedAt={userData.fetchedAt}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
+      />
+      <PublicProfileView
+        targetUid={userData.uid}
+        initialProfile={userData.profile}
+        initialLinks={userData.links}
+        serverFetchedAt={userData.fetchedAt}
+      />
+    </>
   );
 }
