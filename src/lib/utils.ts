@@ -34,3 +34,34 @@ export function getSafeHref(rawUrl: string): string {
   }
   return `https://${trimmed}`;
 }
+
+/**
+ * 프로덕션 도메인 및 사이트 기본 URL 반환
+ * Vercel 환경에서 배포 프리뷰 도메인(SSO 로그인 보호) 대신 공식 프로덕션 도메인을 사용하여
+ * OpenGraph 크롤러(카카오, 페이스북, 네이버, 트위터 등)가 인증 리다이렉트 없이 정상 접근할 수 있도록 보장합니다.
+ */
+export function getSiteUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    let url = process.env.NEXT_PUBLIC_APP_URL.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+    return url.replace(/\/+$/, "");
+  }
+
+  // Vercel 프로덕션 도메인 (예: my-link-cy.vercel.app)
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/+$/, "")}`;
+  }
+
+  // 프로덕션 빌드/실행 환경 기본값
+  if (process.env.NODE_ENV === "production") {
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL.replace(/\/+$/, "")}`;
+    }
+    return "https://my-link-cy.vercel.app";
+  }
+
+  // 로컬 개발 환경
+  return "http://localhost:3000";
+}

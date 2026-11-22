@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchPublicUserByDisplayname } from "@/lib/queries/mylink";
 import { PublicProfileView } from "@/components/PublicProfileView";
+import { getSiteUrl } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +38,9 @@ export async function generateMetadata({
     ? profile.bio.replace(/\r?\n+/g, " ").trim()
     : `${profile.displayName}님의 MyLink 프로필 및 추천 링크 모음입니다.`;
 
-  const profileUrl = `/${encodeURIComponent(profile.username || displayname)}`;
-  const ogImageUrl = `/${encodeURIComponent(profile.username || displayname)}/opengraph-image`;
+  const siteUrl = getSiteUrl();
+  const profileUrl = `${siteUrl}/${encodeURIComponent(profile.username || displayname)}`;
+  const ogImageUrl = `${siteUrl}/${encodeURIComponent(profile.username || displayname)}/opengraph-image`;
 
   return {
     title: titleString,
@@ -92,9 +94,7 @@ export default async function DisplayNameProfilePage({
     notFound();
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const siteUrl = getSiteUrl();
 
   const canonicalUrl = `${siteUrl}/${encodeURIComponent(userData.profile.username || displayname)}`;
   const socialUrls = (userData.profile.socials || [])

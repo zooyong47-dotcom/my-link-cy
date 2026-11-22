@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { QueryProvider } from "@/components/QueryProvider";
+import { getSiteUrl } from "@/lib/utils";
 import "./globals.css";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const siteUrl = getSiteUrl();
 
 export const viewport: Viewport = {
   themeColor: "#3549FF",
@@ -70,10 +69,18 @@ export const metadata: Metadata = {
       "포트폴리오, 깃허브, 인스타그램, 블로그를 1분 만에 하나의 감각적인 프로필 카드로 모아보세요. 개발자, 크리에이터를 위한 올인원 프로필 링크.",
     images: [
       {
+        url: `${siteUrl}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: "MyLink - 나를 표현하는 단 하나의 프로필 링크",
+        type: "image/png",
+      },
+      {
         url: `${siteUrl}/opengraph-image`,
         width: 1200,
         height: 630,
         alt: "MyLink - 나를 표현하는 단 하나의 프로필 링크",
+        type: "image/png",
       },
     ],
   },
@@ -82,7 +89,7 @@ export const metadata: Metadata = {
     title: "MyLink | 나를 표현하는 단 하나의 프로필 링크",
     description:
       "포트폴리오, 깃허브, 인스타그램, 블로그를 1분 만에 하나의 감각적인 프로필 카드로 모아보세요.",
-    images: [`${siteUrl}/opengraph-image`],
+    images: [`${siteUrl}/og-image.png`],
   },
   icons: {
     icon: "/favicon.ico",
