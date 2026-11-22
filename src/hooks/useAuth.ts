@@ -77,11 +77,18 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("mylink_has_auth", "true");
+        }
         try {
           // Firestore users/{currentUser.uid} 경로에 유저 기본 정보 동기화 (커스텀 프로필 보존)
           await syncUserRecord(currentUser);
         } catch (e) {
           console.warn("User profile sync error:", e);
+        }
+      } else {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("mylink_has_auth");
         }
       }
       setLoading(false);
@@ -129,6 +136,10 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("mylink_has_auth");
+        localStorage.removeItem("mylink_view_mode");
+      }
       await signOut(auth);
       setUser(null);
     } catch (err: any) {

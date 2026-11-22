@@ -62,8 +62,12 @@ export default function MyLinkPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [targetDeleteLink, setTargetDeleteLink] = useState<CustomLink | null>(null);
 
-  // 로그인 사용자의 경우 대시보드와 랜딩 페이지를 넘나들 수 있는 토글 모드 지원
-  const [loggedInViewMode, setLoggedInViewMode] = useState<"dashboard" | "landing">("dashboard");
+  // 루트(/) 페이지의 기본 뷰는 언제나 새로운 랜딩 페이지(landing)입니다.
+  const [loggedInViewMode, setLoggedInViewMode] = useState<"dashboard" | "landing">("landing");
+
+  const switchViewMode = (mode: "dashboard" | "landing") => {
+    setLoggedInViewMode(mode);
+  };
 
   useEffect(() => {
     if (authError) showToast(authError, "error");
@@ -120,14 +124,14 @@ export default function MyLinkPage() {
 
   const enabledLinks = links.filter((link) => link.enabled);
 
-  // 1. 비로그인 상태일 때는 풀스케일 반응형 랜딩 페이지 렌더링
-  if (!authLoading && !user) {
+  // 1. 비로그인 상태 및 초기 로딩 시: 항상 새로운 랜딩 페이지 렌더링 (이전 랜딩페이지 노출 방지)
+  if (!user) {
     return (
       <div className="min-h-screen bg-static-white text-neutral-main flex flex-col selection:bg-primary-weak selection:text-primary-main">
         <Toast message={toastMessage} type={toastType} />
 
         <AppHeader
-          user={user}
+          user={null}
           profile={profile}
           authLoading={authLoading}
           isLoggingIn={isSigningIn}
@@ -179,7 +183,7 @@ export default function MyLinkPage() {
             profile={profile}
             onLogin={signInWithGoogle}
             isLoggingIn={isSigningIn}
-            onSwitchToDashboard={() => setLoggedInViewMode("dashboard")}
+            onSwitchToDashboard={() => switchViewMode("dashboard")}
           />
         </main>
       </div>
@@ -253,7 +257,7 @@ export default function MyLinkPage() {
           <div className="inline-flex items-center p-1 rounded-full bg-static-white border border-neutral-weak2 shadow-2xs">
             <button
               type="button"
-              onClick={() => setLoggedInViewMode("dashboard")}
+              onClick={() => switchViewMode("dashboard")}
               className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-main text-white shadow-xs cursor-pointer transition-all"
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -261,7 +265,7 @@ export default function MyLinkPage() {
             </button>
             <button
               type="button"
-              onClick={() => setLoggedInViewMode("landing")}
+              onClick={() => switchViewMode("landing")}
               className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-neutral-strong1 hover:text-primary-main hover:bg-neutral-weak cursor-pointer transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />

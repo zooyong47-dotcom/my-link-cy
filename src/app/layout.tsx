@@ -2,10 +2,31 @@ import type { Metadata } from "next";
 import { QueryProvider } from "@/components/QueryProvider";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "신찬용 (Chan-yong Shin) | MyLink Profile",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "MyLink | 나를 표현하는 단 하나의 프로필 링크",
+    template: "%s | MyLink",
+  },
   description:
-    "신찬용의 프로필 및 링크 페이지입니다. 새로운 기술을 탐구하는 학생 개발자 신찬용의 링크 모음.",
+    "포트폴리오, 깃허브, 인스타그램, 블로그를 1분 만에 하나의 감각적인 프로필 카드로 모아보세요.",
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: siteUrl,
+    siteName: "MyLink",
+    title: "MyLink | 나를 표현하는 단 하나의 프로필 링크",
+    description:
+      "포트폴리오, 깃허브, 인스타그램, 블로그를 1분 만에 하나의 감각적인 프로필 카드로 모아보세요.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MyLink | 나를 표현하는 단 하나의 프로필 링크",
+    description:
+      "포트폴리오, 깃허브, 인스타그램, 블로그를 1분 만에 하나의 감각적인 프로필 카드로 모아보세요.",
+  },
 };
 
 export default function RootLayout({
@@ -21,4 +42,3 @@ export default function RootLayout({
     </html>
   );
 }
-

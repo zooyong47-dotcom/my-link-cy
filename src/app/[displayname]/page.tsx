@@ -28,10 +28,23 @@ export async function generateMetadata({
   }
 
   const { profile } = userData;
+  const title = `${profile.displayName} (@${profile.username}) | MyLink`;
+  const description =
+    profile.bio || `${profile.displayName}님의 MyLink 프로필 및 링크 모음입니다.`;
+
   return {
-    title: `${profile.displayName} (@${profile.username}) | MyLink`,
-    description:
-      profile.bio || `${profile.displayName}님의 MyLink 프로필 및 링크 모음입니다.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
